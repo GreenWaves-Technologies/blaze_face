@@ -26,9 +26,9 @@
 
 typedef signed char NETWORK_OUT_TYPE;
 
+signed char* Output_1;
+signed char* Output_2;
 
-signed char Output_1[16*16*32+96*8*8];
-signed char Output_2[16*16*2+8*8*6];
 AT_HYPERFLASH_FS_EXT_ADDR_TYPE face_detection_front_L3_Flash = 0;
 signed char Input_1[AT_INPUT_SIZE];
 char *ImageName = NULL;
@@ -51,6 +51,9 @@ static void RunNetwork()
 
 int start()
 {
+
+	Output_1=pmsis_l2_malloc(sizeof(char)*(16*16*32+96*8*8));
+	Output_2=pmsis_l2_malloc(sizeof(char)*(16*16*2+8*8*6));
 	#ifndef __EMUL__
 		/*-----------------------OPEN THE CLUSTER--------------------------*/
 		struct pi_device cluster_dev;
@@ -111,6 +114,9 @@ int start()
 	face_detection_frontCNN_Destruct();
 	printf("Encoder destructed\n\n");
 
+	pmsis_l2_malloc_free(Output_1,sizeof(char)*(16*16*32+96*8*8));
+	pmsis_l2_malloc_free(Output_2,sizeof(char)*(16*16*2+8*8*6));
+	
 /* ------------------------------------------------------------------------- */
 	#ifndef __EMUL__
 		pmsis_exit(0);
