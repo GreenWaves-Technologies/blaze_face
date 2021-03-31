@@ -27,8 +27,8 @@
 typedef signed char NETWORK_OUT_TYPE;
 
 
-signed char Output_1[896];
-signed char Output_2[896*16];
+signed char Output_1[16*16*32+96*8*8];
+signed char Output_2[16*16*2+8*8*6];
 AT_HYPERFLASH_FS_EXT_ADDR_TYPE face_detection_front_L3_Flash = 0;
 signed char Input_1[AT_INPUT_SIZE];
 char *ImageName = NULL;
