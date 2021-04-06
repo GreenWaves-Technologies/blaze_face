@@ -44,7 +44,7 @@ static void RunNetwork()
   printf("Running on cluster\n");
   face_detection_frontCNN(Input_1, Output_1, Output_2);
   printf("Runner completed\n");
-  printf("Output_1 = %d\n", Output_1[0]);
+  printf("Output_1 = %d %d %d %d %d \n", Output_1[0],Output_1[1],Output_1[2],Output_1[3],Output_1[4]);
   printf("Output_2 = %d\n", Output_2[0]);
 
 }
@@ -52,15 +52,19 @@ static void RunNetwork()
 int start()
 {
 
-	Output_1=pmsis_l2_malloc(sizeof(char)*(16*16*32+96*8*8));
-	Output_2=pmsis_l2_malloc(sizeof(char)*(16*16*2+8*8*6));
 	#ifndef __EMUL__
+		Output_1=pmsis_l2_malloc(sizeof(char)*(16*16*32+96*8*8));
+		Output_2=pmsis_l2_malloc(sizeof(char)*(16*16*2+8*8*6));
+	
 		/*-----------------------OPEN THE CLUSTER--------------------------*/
 		struct pi_device cluster_dev;
 		struct pi_cluster_conf conf;
 		pi_cluster_conf_init(&conf);
 		pi_open_from_conf(&cluster_dev, (void *)&conf);
 		pi_cluster_open(&cluster_dev);
+	#else
+		Output_1=malloc(sizeof(char)*(16*16*32+96*8*8));
+		Output_2=malloc(sizeof(char)*(16*16*2+8*8*6));
 	#endif
 
 	printf("Reading image %s\n", ImageName);
@@ -114,12 +118,16 @@ int start()
 	face_detection_frontCNN_Destruct();
 	printf("Encoder destructed\n\n");
 
-	pmsis_l2_malloc_free(Output_1,sizeof(char)*(16*16*32+96*8*8));
-	pmsis_l2_malloc_free(Output_2,sizeof(char)*(16*16*2+8*8*6));
 	
 /* ------------------------------------------------------------------------- */
 	#ifndef __EMUL__
+		pmsis_l2_malloc_free(Output_2,sizeof(char)*(16*16*2+8*8*6));
+		pmsis_l2_malloc_free(Output_1,sizeof(char)*(16*16*32+96*8*8));
+
 		pmsis_exit(0);
+	#else
+		free(Output_2);
+		free(Output_1);
 	#endif
 	printf("Ended\n");
 	return 0;
