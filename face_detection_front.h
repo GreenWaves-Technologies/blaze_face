@@ -2,7 +2,7 @@
 #define __IMAGENET_H__
 
 #include "face_detection_frontKernels.h"
-
+#include "face_detection_frontInfo.h"
 #include "Gap.h"
 #include "gaplib/ImgIO.h"
 

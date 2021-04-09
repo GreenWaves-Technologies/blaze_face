@@ -1,6 +1,7 @@
 import sys
 import argparse
 from pathlib import Path
+import os
 
 from collections import namedtuple
 
@@ -11,9 +12,9 @@ import cv2
 from anchors import Anchor, load_face_anchors
 
 import torch
-sys.path.append('../')
-sys.path.append('../open_closed_eye')
-from open_closed_eye.train import Net
+#sys.path.append('../')
+#sys.path.append('../open_closed_eye')
+#from open_closed_eye.train import Net
 
 import albumentations
 from albumentations.pytorch.transforms import ToTensorV2
@@ -97,6 +98,7 @@ class BlazeFace:
     def _postprocess(self, image_width: int, image_height: int, roi: Rect, ) -> list:
         boxes, keypoints = self._decode_boxes_and_keypoints()
         scores, classes = self._decode_score_and_classes()
+        
         resulting_boxes_indices = cv2.dnn.NMSBoxes(boxes, scores, self.min_score_threshold, self.min_suppression_threshold)
         indices = np.squeeze(resulting_boxes_indices, axis=-1) if resulting_boxes_indices else []
         detections = []
@@ -164,6 +166,7 @@ class BlazeFace:
     def _decode_score_and_classes(self) -> tuple:
         classificators_data = self.interpreter.get_tensor(self.classificators_output_index)
         class_scores = classificators_data[0]
+        
         if self.use_score_clipping_threshold:
             class_scores = np.clip(class_scores, -self.score_clipping_threshold,
                                    self.score_clipping_threshold)
@@ -172,6 +175,11 @@ class BlazeFace:
         classes = np.argmax(class_scores, axis=1)
         scores = np.take_along_axis(class_scores,
                                     np.expand_dims(classes, -1), axis=1).squeeze(axis=-1)
+        #output = "{:.7f}".format(class_scores)
+        np.set_printoptions(precision=8)
+        np.set_printoptions(suppress=True)
+
+        print(class_scores)
         return scores, classes
 
 def get_eyes(detection):
@@ -201,7 +209,7 @@ def crop_eyes(frame, detection):
 
     return left_eye_frame, right_eye_frame
 
-def draw_detections(frame: np.array, detections: list, preds) -> np.array:
+def draw_detections(frame: np.array, detections: list) -> np.array:
     for detection in detections:
         print(f'BOUNDING BOX: {detection.bounding_box}')
         print(f'WIDTH: {detection.bounding_box.width}')
@@ -212,153 +220,49 @@ def draw_detections(frame: np.array, detections: list, preds) -> np.array:
         left_eye_box, right_eye_box = get_eyes(detection)
 
         frame = cv2.rectangle(frame, detection.bounding_box, YELLOW_COLOR, 2)
-        if preds[0] > 0.5:
-            frame = cv2.rectangle(frame, left_eye_box, GREEN_COLOR, 2)
-        else:
-            frame = cv2.rectangle(frame, left_eye_box, RED_COLOR, 2)
-        if preds[1] > 0.5:
-            frame = cv2.rectangle(frame, right_eye_box, GREEN_COLOR, 2)
-        else:
-            frame = cv2.rectangle(frame, right_eye_box, RED_COLOR, 2)
-
+        
     return frame
-
-def save_detections(output_dir: Path, frame_index: int, detections: list):
-    fs = cv2.FileStorage(str(output_dir / f'frame_{frame_index:06}.json'), cv2.FILE_STORAGE_WRITE)
-    if not fs.isOpened():
-        print('Can not save detections for', frame_index)
-        return
-    fs.startWriteStruct('detections', cv2.FILE_NODE_SEQ)
-    for detection in detections:
-        fs.startWriteStruct('', cv2.FILE_NODE_MAP)
-        fs.write('class', detection.class_id)
-        fs.write('score', detection.score)
-        fs.write('bounding_box', detection.bounding_box)
-        fs.startWriteStruct('keypoints', cv2.FILE_NODE_SEQ)
-        keypoint_count = 0
-        for kp in detection.keypoints:
-
-            fs.startWriteStruct('', cv2.FILE_NODE_MAP)
-            fs.write('x', kp.x)
-            fs.write('y', kp.y)
-            fs.endWriteStruct()
-        fs.endWriteStruct()
-    fs.endWriteStruct()
-    fs.release()
-
 
 def parse_arguments():
     parser = argparse.ArgumentParser('')
-    parser.add_argument('--face_detection_model_path', type=lambda p: Path(p).absolute(),
-                        default=Path(__file__).absolute().parent / 'models/face_detection_front.tflite',
-                        help='Path to the models directory')
+    parser.add_argument('--face_detection_model_path', type=lambda p: Path(p),
+                        default='../model/face_detection_front.tflite',
+                        help='Model file')
     parser.add_argument('--input', type=str, default=0,
-                        help='Path to video source (device or video file)')
-    parser.add_argument('--output', type=lambda p: Path(p).absolute(),
-                        default=Path(__file__).absolute().parent / 'output',
+                        help='Input image file')
+    parser.add_argument('--output', type=lambda p: Path(p),
+                        default='out_img.jpeg',
                         help='Path to store output results')
-    parser.add_argument('--record_video', action='store_true', help='Record result video file')
     parser.add_argument('--save_detections', action='store_true',
-                        help='Store per frame results in output folder')
-    parser.add_argument('--open_closed_weights', help='Path to open-closed model weights')
+                        help='Store image results in output folder')
     return parser.parse_args()
 
 
 def main():
     args = parse_arguments()
-    should_create_output_folder = args.record_video or args.save_detections
-    if should_create_output_folder:
-        args.output.mkdir(parents=True)
-        print(f'Results will be stored in the "{args.output}"')
-    else:
-        print('Run does not store any result')
+    #should_create_output_folder = args.record_video or args.save_detections
+    
+    #if should_create_output_folder:
+    #    args.output.mkdir(parents=True)
+    #    print(f'Results will be stored in the "{args.output}"')
+    #else:
+    #    print('Run does not store any result')
 
     face_detector = BlazeFace(args.face_detection_model_path)
-    capture = cv2.VideoCapture(args.input)
-    if capture.isOpened():
-        print(f'Working with {args.input}')
-    else:
-        print(f'Can not open capture for {args.input}')
-        return -1
-
-    total_frames = int(round(capture.get(cv2.CAP_PROP_FRAME_COUNT)))
-
-    if args.record_video:
-        writer = cv2.VideoWriter(str(args.output / 'preview.mp4'),
-                                 cv2.VideoWriter_fourcc('m', 'p', '4', 'v'),
-                                 capture.get(cv2.CAP_PROP_FPS),
-                                 (int(capture.get(cv2.CAP_PROP_FRAME_WIDTH)),
-                                  int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))))
-        if writer.isOpened():
-            print('Video will be recorded')
-        else:
-            print(f'Can not open writer for {args.output / "preview.mp4"}')
-            return -1
-
-    if args.save_detections:
-        detections_output_dir = args.output / 'detections'
-        detections_output_dir.mkdir()
-        print(f'Per frame detections result will be written to "{detections_output_dir}"')
-
-    print('Running main loop. Hit ESC on preview to stop or use Ctrl+C in terminal')
-    key = -1
-    processed_frames = 0
-    while key != 27:
-        # Capture frame-by-frame
-        is_frame_available, frame = capture.read()
-        if not is_frame_available:
-            print()
-            print('No more frames are available')
-            break
-
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        detections = face_detector.detect(rgb_frame)
-
-        transforms = albumentations.Compose([albumentations.augmentations.transforms.ToGray(),
-                                            albumentations.augmentations.transforms.Resize(32, 32),
-                                            albumentations.augmentations.transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[1, 1, 1]),
-                                            ToTensorV2(),
-                                            ])
-
-        left_eye_crop, right_eye_crop = crop_eyes(rgb_frame, detections[0])
-        # cv2.imwrite('left_eye.jpg', left_eye_crop)
-        # cv2.imwrite('right_eye.jpg', right_eye_crop)
-        left_aug = transforms(image=left_eye_crop)
-        left_img = left_aug['image'][:1, ...].unsqueeze(0)
-
-        right_aug = transforms(image=right_eye_crop)
-        right_img = right_aug['image'][:1, ...].unsqueeze(0)
-
-        device = torch.device("cuda")
-        model = Net().to(device)
-        model.load_state_dict(torch.load(args.open_closed_weights))
-        model.eval()
-
-        left_pred = model(left_img.to(device))
-
-        right_pred = model(right_img.to(device))
-
-        preds = (torch.sigmoid(left_pred), torch.sigmoid(right_pred))
-
-        frame = draw_detections(frame, detections, preds)
-        if args.save_detections:
-            save_detections(detections_output_dir, processed_frames, detections)
+    
+    detections_output_dir = './detections'
+    #os.mkdir(detections_output_dir)
+    print(f'Per frame detections result will be written to "{detections_output_dir}"')
 
 
-        cv2.namedWindow('Preview', cv2.WINDOW_KEEPRATIO)
-        cv2.imshow('Preview', frame)
-        if args.record_video:
-            writer.write(frame)
+    img = cv2.imread(args.input,1)
+    rgb_frame = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    detections = face_detector.detect(rgb_frame)
+    
+    frame = draw_detections(rgb_frame, detections)
 
-        key = cv2.waitKey(3)
-        processed_frames += 1
-        print(f'Processed: {processed_frames} / {total_frames} frames', end='\r')
+    cv2.imwrite(str(args.output),frame)
 
-    print()
-    capture.release()
-    if args.record_video:
-        writer.release()
-    cv2.destroyAllWindows()
     return 0
 
 

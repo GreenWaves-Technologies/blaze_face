@@ -50,7 +50,7 @@ PULP_APP = face_detection_front
 USE_PMSIS_BSP=1
 
 APP = face_detection_front
-APP_SRCS += main.c $(MODEL_GEN_C) $(MODEL_COMMON_SRCS) $(CNN_LIB)
+APP_SRCS += main.c post_process.c $(MODEL_GEN_C) $(MODEL_COMMON_SRCS) $(CNN_LIB)
 
 APP_CFLAGS += -g -O3 -mno-memcpy -fno-tree-loop-distribute-patterns
 APP_CFLAGS += -I. -I$(MODEL_COMMON_INC) -I$(TILER_EMU_INC) -I$(TILER_INC) $(CNN_LIB_INCLUDE) -I$(realpath $(MODEL_BUILD))
@@ -59,6 +59,8 @@ APP_CFLAGS += -DSTACK_SIZE=$(CLUSTER_STACK_SIZE) -DSLAVE_STACK_SIZE=$(CLUSTER_SL
 APP_CFLAGS += -DAT_IMAGE=$(IMAGE)
 
 APP_CFLAGS += -DPERF
+
+APP_LDFLAGS += -lm
 
 READFS_FILES=$(abspath $(MODEL_TENSORS))
 

@@ -14,7 +14,10 @@
  * limitations under the License.
  */
 
+#include <stdlib.h>
+#include <math.h>
 #include "face_detection_front.h"
+#include "post_process.h"
 
 
 /* Defines */
@@ -44,17 +47,40 @@ static void RunNetwork()
   printf("Running on cluster\n");
   face_detection_frontCNN(Input_1, Output_1, Output_2);
   printf("Runner completed\n");
-  printf("Output_1 = %d %d %d %d %d \n", Output_1[0],Output_1[1],Output_1[2],Output_1[3],Output_1[4]);
-  printf("Output_2 = %d\n", Output_2[0]);
 
+}
+
+static void softmax(float *input, int input_len)
+{
+    //assert (input != NULL);
+    //assert (input_len != 0);
+    int i;
+    float m;
+    /* Find maximum value from input array */
+    m = input[0];
+    for (i = 1; i < input_len; i++) {
+        if (input[i] > m) {
+            m = input[i];
+        }
+    }
+
+    float sum = 0;
+    for (i = 0; i < input_len; i++) {
+        sum += expf(input[i]-m);
+    }
+
+    for (i = 0; i < input_len; i++) {
+        input[i] = expf(input[i] - m - log(sum));
+
+    }    
 }
 
 int start()
 {
 
 	#ifndef __EMUL__
-		Output_1=pmsis_l2_malloc(sizeof(char)*(16*16*32+96*8*8));
-		Output_2=pmsis_l2_malloc(sizeof(char)*(16*16*2+8*8*6));
+		Output_1=pmsis_l2_malloc(sizeof(char)*(16*896));
+		Output_2=pmsis_l2_malloc(sizeof(char)*(1*896));
 	
 		/*-----------------------OPEN THE CLUSTER--------------------------*/
 		struct pi_device cluster_dev;
@@ -114,15 +140,38 @@ int start()
 	}
 	#endif
 
+	
+
     printf("Destructing Network\n");
 	face_detection_frontCNN_Destruct();
 	printf("Encoder destructed\n\n");
-
 	
 /* ------------------------------------------------------------------------- */
+
+
+	float *scores = pmsis_l2_malloc(896*sizeof(float));
+	float *boxes  = pmsis_l2_malloc(16*896*sizeof(float));
+	bbox_t* bboxes = pmsis_l2_malloc(MAX_BB_OUT*sizeof(bbox_t));
+	
+  	for(int i=0;i<896;i++){
+		//printf("%f\n", FIX2FP(((int32_t)Output_2[i])* S131_Op_output_2_OUT_QSCALE ,S131_Op_output_2_OUT_QNORM));
+		//printf("%f\n",((float)Output_2[i])*S131_Op_output_2_OUT_SCALE);
+		
+		scores[i] = 1/(1+exp(-(((float)Output_2[i])*S131_Op_output_2_OUT_SCALE)));
+		printf("%f\n",scores[i] );
+		
+		for(int j=0;j<16;j++)
+			boxes[(i*16)+j] = ((float)Output_1[(i*16)+j])*S143_Op_output_1_OUT_SCALE;
+  	}
+
+  	post_process(scores,boxes,bboxes,128,128, 0.5);
+
+
+  	pmsis_l2_malloc_free(scores,896*sizeof(float));
+
 	#ifndef __EMUL__
-		pmsis_l2_malloc_free(Output_2,sizeof(char)*(16*16*2+8*8*6));
-		pmsis_l2_malloc_free(Output_1,sizeof(char)*(16*16*32+96*8*8));
+		pmsis_l2_malloc_free(Output_2,sizeof(char)*(1*896));
+		pmsis_l2_malloc_free(Output_1,sizeof(char)*(16*896));
 
 		pmsis_exit(0);
 	#else
