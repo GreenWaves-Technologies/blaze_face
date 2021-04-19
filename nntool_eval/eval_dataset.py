@@ -20,6 +20,8 @@ from PIL import Image
 import cv2
 from matplotlib import pyplot as plt
 
+#Accuracy of eval dataset detects 170 bbs in float and 150 in fixed point
+#Accuracy of fixed point vs Float is 88% 
 
 DUMP_QUANT = True
 DUMP_FLOAT = True
@@ -83,10 +85,6 @@ class BlazeFace_decoder:
         self.use_sigmoid_score = True
         self.is_input_vertically_flipped = False
         self.is_output_is_reversed = True
-        #self.input_tensor_index = input_details[0]['index']
-        #self.input_size = input_details[0]['shape'][1]
-        #self.regressors_output_index = output_details[0]['index']
-        #self.classificators_output_index = output_details[1]['index']
         self.input_size=1
         self.raw_boxes=raw_boxes
         self.raw_classes=raw_classes
