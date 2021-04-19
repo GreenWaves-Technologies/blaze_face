@@ -21,12 +21,6 @@ import cv2
 from matplotlib import pyplot as plt
 
 
-#please set follwing fields DUMP_QUANT(you want to do quantizarion or non qauantization)
-# threshold 
-#dataset_files (images that need to be evaluated on), NUM_FILES (this parameter is based on how many files you want to select from test_images folder )
-# quantization_result_path(the path where quantization images are stored, quantized csv output), if not created the code creates it
-# non_quantization_result_path(the path where non quantization images are stored, non quantized csv output), if not created the code creates it 
-
 DUMP_QUANT = True
 DUMP_FLOAT = True
 threshold = 0.5
@@ -109,7 +103,7 @@ class BlazeFace_decoder:
         scores, classes = self._decode_score_and_classes()
         
         resulting_boxes_indices = cv2.dnn.NMSBoxes(boxes, scores, self.min_score_threshold, self.min_suppression_threshold)
-        indices = np.squeeze(resulting_boxes_indices, axis=-1) if resulting_boxes_indices else []
+        indices = np.squeeze(resulting_boxes_indices, axis=-1) #if resulting_boxes_indices else []
         detections = []
         for index in indices:
             box = boxes[index]
@@ -223,56 +217,12 @@ def draw_detections(frame: np.array, detections: list) -> np.array:
         #print(f'WIDTH: {detection.bounding_box.width}')
         #print(f'HEIGHT: {detection.bounding_box.height}')
         #print(f'LEFT EYE: {detection.keypoints[0].x}')
-
-        left_eye_box, right_eye_box = get_eyes(detection)
-
+        #left_eye_box, right_eye_box = get_eyes(detection)
         frame = cv2.rectangle(frame, detection.bounding_box, YELLOW_COLOR, 2)
         
     return frame
 
-
-
-# def main():
-#     args = parse_arguments()
-#     #should_create_output_folder = args.record_video or args.save_detections
-    
-#     #if should_create_output_folder:
-#     #    args.output.mkdir(parents=True)
-#     #    print(f'Results will be stored in the "{args.output}"')
-#     #else:
-#     #    print('Run does not store any result')
-
-#     face_detector = BlazeFace(args.face_detection_model_path)
-    
-#     detections_output_dir = './detections'
-#     #os.mkdir(detections_output_dir)
-#     print(f'Per frame detections result will be written to "{detections_output_dir}"')
-
-
-#     img = cv2.imread(args.input,1)
-#     rgb_frame = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-#     detections = face_detector.detect(rgb_frame)
-    
-#     frame = draw_detections(rgb_frame, detections)
-
-#     cv2.imwrite(str(args.output),frame)
-
-#     return 0
-
-
 def preprocess(resized_inputs):
-    """SSD preprocessing.
-
-    Maps pixel values to the range [-1, 1].
-
-    Args:
-      resized_inputs: a [batch, height, width, channels] float tensor
-        representing a batch of images.
-
-    Returns:
-      preprocessed_inputs: a [batch, height, width, channels] float tensor
-        representing a batch of images.
-    """
     return  resized_inputs/128 - 1.0
 
 def ExtractBBoxes(bboxes, bclasses, bscores, im_width, im_height, threshold):
@@ -305,47 +255,46 @@ def main():
 	if not os.path.exists(non_quantization_result_path):
 		os.makedirs(non_quantization_result_path)
 
-	# subsample the whole dataset
-	#random.seed(54321)
-	#subsample_files = random.sample(dataset_files, NUM_FILES)
-	#LOG = logging.getLogger('nntool.'+__name__)
 	executer = GraphExecuter(G, qrecs=G.quantization)
-
 
 	for j, file in enumerate(dataset_files):
 		name= file.split('/')
 		image_name= name[1]
+		print(image_name)
 		original_img = cv2.imread(file,0)
 		image_gray,null = resize_aspect_fit(original_img,128)
+		q_image_gray = image_gray.copy()
 		image = np.stack((image_gray,image_gray,image_gray),axis=2)
 		print("Input Image: "+image_name+" - shape: "+str(image.shape))
 		image_q = image
 		
 		if DUMP_FLOAT:
+			print("Float")
 			data =[image]
-			#print(data[0])
-			outputs = executer.execute(data, qmode=None, silent=True)
-
+			#Calling nntool float executer on input data
+			outputs  = executer.execute(data, qmode=None, silent=True)
 			bboxes   = np.concatenate((np.array(outputs[137][0]),np.array(outputs[143][0])))# taking just one dimension
-			bclasses= np.concatenate((np.array(outputs[125][0]),np.array(outputs[131][0])))
+			bclasses = np.concatenate((np.array(outputs[125][0]),np.array(outputs[131][0])))
 			#bclasses = np.array(outputs[125][0])
 
 			detections = decode_bounding_boxes(bboxes, bclasses, 128, 128, threshold, nms_threshold)
 
-			draw_detections(image_gray,detections)
-			cv2.imwrite(non_quantization_result_path + '/' + image_name, image_gray )
+			frame = draw_detections(image_gray,detections)
+			cv2.imwrite(non_quantization_result_path + '/' + image_name, frame )
 
 		if DUMP_QUANT:
-			# quant
-			data_q    = [image_q]
-			outputs = executer.execute(data_q, qmode=QuantizationMode.all_dequantize(), silent=True)
+			print("Quantized")
+			data   = [image_q]
+			#Calling nntool quantized executer on input data
+			outputs  = executer.execute(data, qmode=QuantizationMode.all_dequantize(), silent=True)
 			bboxes   = np.concatenate((np.array(outputs[137][0]),np.array(outputs[143][0])))# taking just one dimension
-			bclasses= np.concatenate((np.array(outputs[125][0]),np.array(outputs[131][0])))
-			
+			bclasses = np.concatenate((np.array(outputs[125][0]),np.array(outputs[131][0])))
 
 			detections = decode_bounding_boxes(bboxes, bclasses, 128, 128, threshold, nms_threshold)
-			draw_detections(image_gray,detections)
-			cv2.imwrite(quantization_result_path + '/' + image_name, image_gray )
+			q_frame = draw_detections(q_image_gray,detections)
+			cv2.imwrite(quantization_result_path + '/' + image_name, q_frame )
+
+		print("")
 
 #if __name__ == '__main__':
 #    sys.exit(main())
