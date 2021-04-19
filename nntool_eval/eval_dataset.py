@@ -212,15 +212,17 @@ def crop_eyes(frame, detection):
     return left_eye_frame, right_eye_frame
 
 def draw_detections(frame: np.array, detections: list) -> np.array:
-    for detection in detections:
-        print(f'BOUNDING BOX: {detection.bounding_box}')
-        #print(f'WIDTH: {detection.bounding_box.width}')
-        #print(f'HEIGHT: {detection.bounding_box.height}')
-        #print(f'LEFT EYE: {detection.keypoints[0].x}')
-        #left_eye_box, right_eye_box = get_eyes(detection)
-        frame = cv2.rectangle(frame, detection.bounding_box, YELLOW_COLOR, 2)
+	num_detections=0
+	for detection in detections:
+		num_detections=num_detections+1
+		print(f'BOUNDING BOX: {detection.bounding_box}')
+		#print(f'WIDTH: {detection.bounding_box.width}')
+		#print(f'HEIGHT: {detection.bounding_box.height}')
+		#print(f'LEFT EYE: {detection.keypoints[0].x}')
+		#left_eye_box, right_eye_box = get_eyes(detection)
+		frame = cv2.rectangle(frame, detection.bounding_box, YELLOW_COLOR, 2)
         
-    return frame
+	return frame, num_detections
 
 def preprocess(resized_inputs):
     return  resized_inputs/128 - 1.0
@@ -257,6 +259,8 @@ def main():
 
 	executer = GraphExecuter(G, qrecs=G.quantization)
 
+	q_dets=0
+	dets=0
 	for j, file in enumerate(dataset_files):
 		name= file.split('/')
 		image_name= name[1]
@@ -279,8 +283,9 @@ def main():
 
 			detections = decode_bounding_boxes(bboxes, bclasses, 128, 128, threshold, nms_threshold)
 
-			frame = draw_detections(image_gray,detections)
+			frame,numd = draw_detections(image_gray,detections)
 			cv2.imwrite(non_quantization_result_path + '/' + image_name, frame )
+			dets=dets+numd
 
 		if DUMP_QUANT:
 			print("Quantized")
@@ -291,11 +296,14 @@ def main():
 			bclasses = np.concatenate((np.array(outputs[125][0]),np.array(outputs[131][0])))
 
 			detections = decode_bounding_boxes(bboxes, bclasses, 128, 128, threshold, nms_threshold)
-			q_frame = draw_detections(q_image_gray,detections)
+			q_frame, q_numd = draw_detections(q_image_gray,detections)
 			cv2.imwrite(quantization_result_path + '/' + image_name, q_frame )
+			q_dets = q_dets+q_numd
 
 		print("")
 
+	print("Detected Float: " + str(dets))
+	print("Detected Fixed: " + str(q_dets))
 #if __name__ == '__main__':
 #    sys.exit(main())
 main()
