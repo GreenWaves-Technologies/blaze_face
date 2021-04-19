@@ -26,6 +26,8 @@
 
 #endif
 
+#define NON_MAX_THRES 0.5
+
 #define Y_SCALE 128
 #define X_SCALE 128
 #define W_SCALE 128
@@ -36,11 +38,12 @@ typedef struct
 {
 	int    xmin;
 	int    ymin;
-	int    xmax;
-	int    ymax;
+	int    w;
+	int    h;
 	float score;
+	uint8_t alive;
 }bbox_t;
 
-int post_process(float* scores,float * boxes,bbox_t* bboxes,int width,int height, float thres);
+int post_process(float* scores,float * boxes,bbox_t* bboxes,int img_w,int img_h, float thres);
 
 #endif //__POST_PROCESS_H__

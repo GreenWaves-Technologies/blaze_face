@@ -906,25 +906,54 @@ PI_L2 float anchors[896*4] = {
         0.937500, 0.937500, 1.000000, 1.000000
     };
 
+/*
+  center_y = regression_data[self.box_coordinates_offset +
+                                       box_offset_y] / self.y_scale * anchor.height + anchor.center_y
+            center_x = regression_data[self.box_coordinates_offset +
+                                       box_offset_x] / self.x_scale * anchor.width + anchor.center_x
+            height = regression_data[self.box_coordinates_offset +
+                                     box_offset_height] / self.h_scale * anchor.height
+            width = regression_data[self.box_coordinates_offset +
+                                    box_offset_width] / self.w_scale * anchor.width
+                                    */
 
-int post_process(float* scores,float * boxes,bbox_t* bboxes,int width,int height, float thres){
-	int det_bb=0;
 
+int post_process(float* scores,float * boxes,bbox_t* bboxes,int img_w,int img_h, float thres){
+    float center_y;
+    float center_x;
+    float bbh;
+    float bbw;
+    float min_x;
+    float min_y;
+    int det_bb=0;
+    for(int i=0;i<MAX_BB_OUT;i++){
+        bboxes[i].alive=0;
+    }
 	for(int i=0;i<896;i++){
-		if(scores[i]>=thres){
+		if(scores[i]>thres && det_bb<MAX_BB_OUT){
+            //printf("%d\n",i);
 
-			float center_y = boxes[(i*16)+box_offset_y]      / ( Y_SCALE * anchors[(i*4)+3] + anchors[(i*4)+1]);
-			float center_x = boxes[(i*16)+box_offset_x]      / ( X_SCALE * anchors[(i*4)+2] + anchors[(i*4)+0]);
-			float height   = boxes[(i*16)+box_offset_height] / ( H_SCALE * anchors[(i*4)+3] + anchors[(i*4)+3]);
-			float width    = boxes[(i*16)+box_offset_width]  / ( W_SCALE * anchors[(i*4)+3] + anchors[(i*4)+2]);
-			float min_x = center_x - 0.5 * width;
-            float min_y = center_y - 0.5 * height;
+            center_y = boxes[(i*16)+box_offset_y] /  Y_SCALE * anchors[(i*4)+3] + anchors[(i*4)+1];
+            center_x = boxes[(i*16)+box_offset_x] /  X_SCALE * anchors[(i*4)+2] + anchors[(i*4)+0];
+            //printf("%f %f \n",center_y,center_x);
+
+            bbh = boxes[(i*16)+box_offset_height] /  H_SCALE * anchors[(i*4)+3];
+            bbw = boxes[(i*16)+box_offset_width]  /  W_SCALE * anchors[(i*4)+2];
+            //printf("%f %f \n",bbh,bbw);
+
+
+            bboxes[det_bb].h =((boxes[(i*16)+box_offset_height] /  H_SCALE * anchors[(i*4)+3])*128);
+            bboxes[det_bb].w =((boxes[(i*16)+box_offset_width]  /  W_SCALE * anchors[(i*4)+2])*128);
+            bboxes[det_bb].xmin = ((center_x - 0.5 * bbw)*128);
+            bboxes[det_bb].ymin = ((center_y - 0.5 * bbh)*128);
+            bboxes[det_bb].score=scores[i];
+            bboxes[det_bb++].alive=1;
+
+            //printf("%f %f %f \n",boxes[(i*16)+box_offset_y],anchors[(i*4)+3],anchors[(i*4)+1]);
             
-            printf("%f %f %f %f\n",min_x,min_y,width,height);
+               
 		}
 	}
-
-	
 }
 
 

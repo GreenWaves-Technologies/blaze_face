@@ -29,13 +29,12 @@
 
 typedef signed char NETWORK_OUT_TYPE;
 
-signed char* Output_1;
-signed char* Output_2;
+signed char* scores_out;
+signed char* boxes_out;
 
 AT_HYPERFLASH_FS_EXT_ADDR_TYPE face_detection_front_L3_Flash = 0;
 signed char Input_1[AT_INPUT_SIZE];
 char *ImageName = NULL;
-
 
 static void RunNetwork()
 {
@@ -45,7 +44,7 @@ static void RunNetwork()
 	gap_cl_resethwtimer();
 #endif
   printf("Running on cluster\n");
-  face_detection_frontCNN(Input_1, Output_1, Output_2);
+  face_detection_frontCNN(Input_1,scores_out,&(scores_out[512]),boxes_out,&(boxes_out[512*16]));
   printf("Runner completed\n");
 
 }
@@ -75,12 +74,76 @@ static void softmax(float *input, int input_len)
     }    
 }
 
+void printBboxes_forPython(bbox_t *boundbxs){
+    printf("\n\n======================================================");
+    printf("\nThis can be copy-pasted to python to draw BoudingBoxs   ");
+    printf("\n\n");
+
+    for (int counter=0;counter< MAX_BB_OUT;counter++){
+        if(boundbxs[counter].alive)
+            printf("rect = patches.Rectangle((%d,%d),%d,%d,linewidth=1,edgecolor='r',facecolor='none')\nax.add_patch(rect)\n",
+                boundbxs[counter].xmin,
+                boundbxs[counter].ymin,
+                boundbxs[counter].w,
+                boundbxs[counter].h);
+    }//
+}
+
+int rect_intersect_area( short a_x, short a_y, short a_w, short a_h,
+                         short b_x, short b_y, short b_w, short b_h ){
+
+    #define MIN(a,b) ((a) < (b) ? (a) : (b))
+    #define MAX(a,b) ((a) > (b) ? (a) : (b))
+
+    int x = MAX(a_x,b_x);
+    int y = MAX(a_y,b_y);
+
+    int size_x = MIN(a_x+a_w,b_x+b_w) - x;
+    int size_y = MIN(a_y+a_h,b_y+b_h) - y;
+
+    if(size_x <=0 || size_x <=0)
+        return 0;
+    else
+        return size_x*size_y;
+
+    #undef MAX
+    #undef MIN
+}
+
+void non_max_suppress(bbox_t * boundbxs){
+
+    int idx,idx_int;
+
+    //Non-max supression
+     for(idx=0;idx<MAX_BB_OUT;idx++){
+        //check if rect has been removed (-1)
+        if(boundbxs[idx].alive==0)
+            continue;
+
+        for(idx_int=0;idx_int<MAX_BB_OUT;idx_int++){
+
+            if(boundbxs[idx_int].alive==0 || idx_int==idx)
+                continue;
+
+            //check the intersection between rects
+            int intersection = rect_intersect_area(boundbxs[idx].xmin,boundbxs[idx].ymin,boundbxs[idx].w,boundbxs[idx].h,
+                                                   boundbxs[idx_int].xmin,boundbxs[idx_int].ymin,boundbxs[idx_int].w,boundbxs[idx_int].h);
+
+            if(intersection >= NON_MAX_THRES){ //is non-max
+                //supress the one that has lower score that is alway the internal index, since the input is sorted
+                boundbxs[idx_int].alive =0;
+            }
+        }
+    }
+}
+
+
 int start()
 {
 
 	#ifndef __EMUL__
-		Output_1=pmsis_l2_malloc(sizeof(char)*(16*896));
-		Output_2=pmsis_l2_malloc(sizeof(char)*(1*896));
+		boxes_out=pmsis_l2_malloc(sizeof(char)*(16*896));
+		scores_out=pmsis_l2_malloc(sizeof(char)*(1*896));
 	
 		/*-----------------------OPEN THE CLUSTER--------------------------*/
 		struct pi_device cluster_dev;
@@ -152,26 +215,53 @@ int start()
 	float *scores = pmsis_l2_malloc(896*sizeof(float));
 	float *boxes  = pmsis_l2_malloc(16*896*sizeof(float));
 	bbox_t* bboxes = pmsis_l2_malloc(MAX_BB_OUT*sizeof(bbox_t));
+
+	if(scores==NULL || boxes==NULL || bboxes==NULL){
+		printf("Alloc error\n");
+		pmsis_exit(-1);
+	}
 	
   	for(int i=0;i<896;i++){
-		//printf("%f\n", FIX2FP(((int32_t)Output_2[i])* S131_Op_output_2_OUT_QSCALE ,S131_Op_output_2_OUT_QNORM));
-		//printf("%f\n",((float)Output_2[i])*S131_Op_output_2_OUT_SCALE);
+  		//printf("%d\n",scores_out[i]);
+		//printf("%f\n", FIX2FP(((int32_t)scores_out[i])* S137_Op_output_5_OUT_QSCALE ,S137_Op_output_5_OUT_QNORM));
+		//printf("%f\n",((float)scores_out[i])*S137_Op_output_5_OUT_SCALE);
 		
-		scores[i] = 1/(1+exp(-(((float)Output_2[i])*S131_Op_output_2_OUT_SCALE)));
-		printf("%f\n",scores[i] );
+		if(i<512)
+			scores[i] = 1/(1+exp(-(((float)scores_out[i])*S125_Op_output_3_OUT_SCALE)));
+		else
+			scores[i] = 1/(1+exp(-(((float)scores_out[i])*S131_Op_output_4_OUT_SCALE)));
 		
-		for(int j=0;j<16;j++)
-			boxes[(i*16)+j] = ((float)Output_1[(i*16)+j])*S143_Op_output_1_OUT_SCALE;
+		//if(i==512) printf("\n");
+		//printf("%f\n",scores[i] );
+		
+		for(int j=0;j<16;j++){
+			if(i<512)
+				boxes[(i*16)+j] = ((float)boxes_out[(i*16)+j])*S137_Op_output_5_OUT_SCALE;
+			else
+				boxes[(i*16)+j] = ((float)boxes_out[(i*16)+j])*S143_Op_output_6_OUT_SCALE;
+			//if(i==512) printf("\n");
+			//printf("%f\n",boxes[i*16+j]);
+		}
   	}
 
   	post_process(scores,boxes,bboxes,128,128, 0.5);
+  	non_max_suppress(bboxes);
 
+  	printBboxes_forPython(bboxes);
+
+  	for(int i=0;i<MAX_BB_OUT;i++){
+  		if (bboxes[i].alive)
+  			printf("%f %d %d %d %d\n",bboxes[i].score, bboxes[i].xmin,bboxes[i].ymin,bboxes[i].w,bboxes[i].h);
+  	}
 
   	pmsis_l2_malloc_free(scores,896*sizeof(float));
+  	pmsis_l2_malloc_free(boxes,16*896*sizeof(float));
+	pmsis_l2_malloc_free(bboxes,MAX_BB_OUT*sizeof(bbox_t));
+
 
 	#ifndef __EMUL__
-		pmsis_l2_malloc_free(Output_2,sizeof(char)*(1*896));
-		pmsis_l2_malloc_free(Output_1,sizeof(char)*(16*896));
+		pmsis_l2_malloc_free(scores_out,sizeof(char)*(1*896));
+		pmsis_l2_malloc_free(boxes_out,sizeof(char)*(16*896));
 
 		pmsis_exit(0);
 	#else

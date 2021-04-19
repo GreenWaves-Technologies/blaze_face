@@ -1,23 +1,44 @@
 import sys
 import argparse
 from pathlib import Path
-import os
-
 from collections import namedtuple
-
-import numpy as np
 import tensorflow as tf
 import cv2
 
 from anchors import Anchor, load_face_anchors
 
-import torch
-#sys.path.append('../')
-#sys.path.append('../open_closed_eye')
-#from open_closed_eye.train import Net
+from execution.graph_executer import GraphExecuter
+from execution.quantization_mode import QuantizationMode
+import numpy as np
+import os
+import glob
+import ntpath
+import random
+import logging
+import pandas as pd
+from PIL import Image
+import cv2
+from matplotlib import pyplot as plt
 
-import albumentations
-from albumentations.pytorch.transforms import ToTensorV2
+
+#please set follwing fields DUMP_QUANT(you want to do quantizarion or non qauantization)
+# threshold 
+#dataset_files (images that need to be evaluated on), NUM_FILES (this parameter is based on how many files you want to select from test_images folder )
+# quantization_result_path(the path where quantization images are stored, quantized csv output), if not created the code creates it
+# non_quantization_result_path(the path where non quantization images are stored, non quantized csv output), if not created the code creates it 
+
+DUMP_QUANT = True
+DUMP_FLOAT = True
+threshold = 0.5
+nms_threshold = 0.4
+NUM_FILES = 21
+score_clipping_threshold=100
+dataset_files = glob.glob("eval_dataset/*")
+quantization_result_path = "quantized_output"
+non_quantization_result_path ="non_quantized_output"
+
+class_names = ("null","person")
+
 
 Rect = namedtuple('Rect', ['x', 'y', 'width', 'height'])
 Point = namedtuple('Point', ['x', 'y'])
@@ -27,6 +48,9 @@ RED_COLOR = (0, 0, 255, 255)
 GREEN_COLOR = (0, 255, 0, 255)
 BLUE_COLOR = (255, 0, 0, 255)
 YELLOW_COLOR = (0, 255, 255, 255)
+
+quantized_list= list()
+non_quantized_list= list()
 
 
 def resize_aspect_fit(src: np.array, target_side_size: int) -> tuple:
@@ -46,12 +70,11 @@ def resize_aspect_fit(src: np.array, target_side_size: int) -> tuple:
     return dst, Rect(left_border, top_border, target_width, target_height)
 
 
-class BlazeFace:
-    def __init__(self, model_path: Path):
-        self.interpreter = tf.lite.Interpreter(model_path=str(model_path))
-        self.interpreter.allocate_tensors()
-        # Parameters are taken from the following graph
-        # https://github.com/google/mediapipe/blob/master/mediapipe/graphs/face_detection/face_detection_mobile_gpu.pbtxt
+class BlazeFace_decoder:
+	
+	# Initilizer
+    def __init__(self, raw_boxes,raw_classes):
+        
         self.number_of_keypoints = 6
         self.number_of_boxes = 896
         self.number_of_coordinates = 16
@@ -66,36 +89,22 @@ class BlazeFace:
         self.use_sigmoid_score = True
         self.is_input_vertically_flipped = False
         self.is_output_is_reversed = True
-        input_details = self.interpreter.get_input_details()
-        self.input_tensor_index = input_details[0]['index']
-        self.input_size = input_details[0]['shape'][1]
-        output_details = self.interpreter.get_output_details()
-        self.regressors_output_index = output_details[0]['index']
-        self.classificators_output_index = output_details[1]['index']
-        self.x_scale = self.input_size
-        self.y_scale = self.x_scale
-        self.h_scale = self.x_scale
-        self.w_scale = self.x_scale
+        #self.input_tensor_index = input_details[0]['index']
+        #self.input_size = input_details[0]['shape'][1]
+        #self.regressors_output_index = output_details[0]['index']
+        #self.classificators_output_index = output_details[1]['index']
+        self.input_size=1
+        self.raw_boxes=raw_boxes
+        self.raw_classes=raw_classes
+        self.x_scale = 128
+        self.y_scale = 128
+        self.h_scale = 128
+        self.w_scale = 128
         self.anchors = load_face_anchors()
 
-    def detect(self, image: np.array) -> list:
-        # Preprocess input image
-        working_image, roi = self._preprocess(image)
-        # Run inference
-        self._inference(working_image)
-        # Decode results
-        return self._postprocess(image.shape[1], image.shape[0], roi)
 
-    def _preprocess(self, image: np.array) -> tuple:
-        working_image, roi = resize_aspect_fit(image, self.input_size)
-        working_image = (working_image.astype(np.float32) - 127.5) / 127.5
-        return np.resize(working_image, (1, *working_image.shape)), roi
 
-    def _inference(self, image: np.array):
-        self.interpreter.set_tensor(self.input_tensor_index, image)
-        self.interpreter.invoke()
-
-    def _postprocess(self, image_width: int, image_height: int, roi: Rect, ) -> list:
+    def postprocess(self, image_width: int, image_height: int, ) -> list:
         boxes, keypoints = self._decode_boxes_and_keypoints()
         scores, classes = self._decode_score_and_classes()
         
@@ -105,15 +114,15 @@ class BlazeFace:
         for index in indices:
             box = boxes[index]
             bounding_box = Rect(
-                int(max(image_width * (self.input_size * box.x - roi.x) / roi.width, 0)),
-                int(max(image_height * (self.input_size * box.y - roi.y) / roi.height, 0)),
-                int(image_width * (self.input_size * box.width) / roi.width),
-                int(image_height * (self.input_size * box.height) / roi.height)
+                int(max(image_width  * (self.input_size * box.x ), 0)),
+                int(max(image_height * (self.input_size * box.y ), 0)),
+                int(image_width * (self.input_size * box.width) ),
+                int(image_height * (self.input_size * box.height))
             )
             detection_keypoints = [
                 Point(
-                    int(image_width * (self.input_size * keypoint.x - roi.x) / roi.width),
-                    int(image_height * (self.input_size * keypoint.y - roi.y) / roi.height)
+                    int(image_width * (self.input_size * keypoint.x )),
+                    int(image_height * (self.input_size * keypoint.y))
                 )
                 for keypoint in keypoints[index]
             ]
@@ -123,7 +132,7 @@ class BlazeFace:
         return detections
 
     def _decode_boxes_and_keypoints(self) -> tuple:
-        regressors_output = self.interpreter.get_tensor(self.regressors_output_index)
+        #regressors_output = self.interpreter.get_tensor(self.regressors_output_index)
         if self.is_output_is_reversed:
             box_offset_y = 1
             box_offset_x = 0
@@ -140,7 +149,7 @@ class BlazeFace:
             keypoint_offset_x = 1
         boxes = []
         keypoints = []
-        for regression_data, anchor in zip(regressors_output[0], self.anchors):
+        for regression_data, anchor in zip(self.raw_boxes, self.anchors):
             center_y = regression_data[self.box_coordinates_offset +
                                        box_offset_y] / self.y_scale * anchor.height + anchor.center_y
             center_x = regression_data[self.box_coordinates_offset +
@@ -164,8 +173,8 @@ class BlazeFace:
         return boxes, keypoints
 
     def _decode_score_and_classes(self) -> tuple:
-        classificators_data = self.interpreter.get_tensor(self.classificators_output_index)
-        class_scores = classificators_data[0]
+        #classificators_data = self.interpreter.get_tensor(self.classificators_output_index)
+        class_scores = self.raw_classes
         
         if self.use_score_clipping_threshold:
             class_scores = np.clip(class_scores, -self.score_clipping_threshold,
@@ -221,48 +230,123 @@ def draw_detections(frame: np.array, detections: list) -> np.array:
         
     return frame
 
-def parse_arguments():
-    parser = argparse.ArgumentParser('')
-    parser.add_argument('--face_detection_model_path', type=lambda p: Path(p),
-                        default='../model/face_detection_front.tflite',
-                        help='Model file')
-    parser.add_argument('--input', type=str, default=0,
-                        help='Input image file')
-    parser.add_argument('--output', type=lambda p: Path(p),
-                        default='out_img.jpeg',
-                        help='Path to store output results')
-    parser.add_argument('--save_detections', action='store_true',
-                        help='Store image results in output folder')
-    return parser.parse_args()
+
+
+# def main():
+#     args = parse_arguments()
+#     #should_create_output_folder = args.record_video or args.save_detections
+    
+#     #if should_create_output_folder:
+#     #    args.output.mkdir(parents=True)
+#     #    print(f'Results will be stored in the "{args.output}"')
+#     #else:
+#     #    print('Run does not store any result')
+
+#     face_detector = BlazeFace(args.face_detection_model_path)
+    
+#     detections_output_dir = './detections'
+#     #os.mkdir(detections_output_dir)
+#     print(f'Per frame detections result will be written to "{detections_output_dir}"')
+
+
+#     img = cv2.imread(args.input,1)
+#     rgb_frame = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+#     detections = face_detector.detect(rgb_frame)
+    
+#     frame = draw_detections(rgb_frame, detections)
+
+#     cv2.imwrite(str(args.output),frame)
+
+#     return 0
+
+
+def preprocess(resized_inputs):
+    """SSD preprocessing.
+
+    Maps pixel values to the range [-1, 1].
+
+    Args:
+      resized_inputs: a [batch, height, width, channels] float tensor
+        representing a batch of images.
+
+    Returns:
+      preprocessed_inputs: a [batch, height, width, channels] float tensor
+        representing a batch of images.
+    """
+    return  resized_inputs/128 - 1.0
+
+def ExtractBBoxes(bboxes, bclasses, bscores, im_width, im_height, threshold):
+	bbox = []
+	print(bscores)
+	for idx in range(len(bboxes)):
+		if bclasses[idx] == 1:
+			if bscores[idx] >= threshold:
+				
+				y_min = int(bboxes[idx][0] * im_height)
+				x_min = int(bboxes[idx][1] * im_width)
+				y_max = int(bboxes[idx][2] * im_height)
+				x_max = int(bboxes[idx][3] * im_width)
+				class_label = 'person'
+				bbox.append([x_min, y_min, x_max, y_max, class_label, float(bscores[idx])])
+	return bbox
+
+def decode_bounding_boxes(bboxes, bclasses, im_width, im_height, threshold, nms_threshold):
+
+	decode = BlazeFace_decoder(bboxes,bclasses)
+	detections = decode.postprocess(128,128)
+	return detections
 
 
 def main():
-    args = parse_arguments()
-    #should_create_output_folder = args.record_video or args.save_detections
-    
-    #if should_create_output_folder:
-    #    args.output.mkdir(parents=True)
-    #    print(f'Results will be stored in the "{args.output}"')
-    #else:
-    #    print('Run does not store any result')
 
-    face_detector = BlazeFace(args.face_detection_model_path)
-    
-    detections_output_dir = './detections'
-    #os.mkdir(detections_output_dir)
-    print(f'Per frame detections result will be written to "{detections_output_dir}"')
+	if not os.path.exists(quantization_result_path):
+		os.makedirs(quantization_result_path)
+
+	if not os.path.exists(non_quantization_result_path):
+		os.makedirs(non_quantization_result_path)
+
+	# subsample the whole dataset
+	#random.seed(54321)
+	#subsample_files = random.sample(dataset_files, NUM_FILES)
+	#LOG = logging.getLogger('nntool.'+__name__)
+	executer = GraphExecuter(G, qrecs=G.quantization)
 
 
-    img = cv2.imread(args.input,1)
-    rgb_frame = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    detections = face_detector.detect(rgb_frame)
-    
-    frame = draw_detections(rgb_frame, detections)
+	for j, file in enumerate(dataset_files):
+		name= file.split('/')
+		image_name= name[1]
+		original_img = cv2.imread(file,0)
+		image_gray,null = resize_aspect_fit(original_img,128)
+		image = np.stack((image_gray,image_gray,image_gray),axis=2)
+		print("Input Image: "+image_name+" - shape: "+str(image.shape))
+		image_q = image
+		
+		if DUMP_FLOAT:
+			data =[image]
+			#print(data[0])
+			outputs = executer.execute(data, qmode=None, silent=True)
 
-    cv2.imwrite(str(args.output),frame)
+			bboxes   = np.concatenate((np.array(outputs[137][0]),np.array(outputs[143][0])))# taking just one dimension
+			bclasses= np.concatenate((np.array(outputs[125][0]),np.array(outputs[131][0])))
+			#bclasses = np.array(outputs[125][0])
 
-    return 0
+			detections = decode_bounding_boxes(bboxes, bclasses, 128, 128, threshold, nms_threshold)
 
+			draw_detections(image_gray,detections)
+			cv2.imwrite(non_quantization_result_path + '/' + image_name, image_gray )
 
-if __name__ == '__main__':
-    sys.exit(main())
+		if DUMP_QUANT:
+			# quant
+			data_q    = [image_q]
+			outputs = executer.execute(data_q, qmode=QuantizationMode.all_dequantize(), silent=True)
+			bboxes   = np.concatenate((np.array(outputs[137][0]),np.array(outputs[143][0])))# taking just one dimension
+			bclasses= np.concatenate((np.array(outputs[125][0]),np.array(outputs[131][0])))
+			
+
+			detections = decode_bounding_boxes(bboxes, bclasses, 128, 128, threshold, nms_threshold)
+			draw_detections(image_gray,detections)
+			cv2.imwrite(quantization_result_path + '/' + image_name, image_gray )
+
+#if __name__ == '__main__':
+#    sys.exit(main())
+main()
