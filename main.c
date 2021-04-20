@@ -82,10 +82,11 @@ void printBboxes_forPython(bbox_t *boundbxs){
     for (int counter=0;counter< MAX_BB_OUT;counter++){
         if(boundbxs[counter].alive)
             printf("rect = patches.Rectangle((%d,%d),%d,%d,linewidth=1,edgecolor='r',facecolor='none')\nax.add_patch(rect)\n",
-                boundbxs[counter].xmin,
                 boundbxs[counter].ymin,
-                boundbxs[counter].w,
-                boundbxs[counter].h);
+                boundbxs[counter].xmin,
+                boundbxs[counter].h,
+                boundbxs[counter].w
+                );
     }//
 }
 
@@ -222,25 +223,16 @@ int start()
 	}
 	
   	for(int i=0;i<896;i++){
-  		//printf("%d\n",scores_out[i]);
-		//printf("%f\n", FIX2FP(((int32_t)scores_out[i])* S137_Op_output_5_OUT_QSCALE ,S137_Op_output_5_OUT_QNORM));
-		//printf("%f\n",((float)scores_out[i])*S137_Op_output_5_OUT_SCALE);
-		
 		if(i<512)
 			scores[i] = 1/(1+exp(-(((float)scores_out[i])*S125_Op_output_3_OUT_SCALE)));
 		else
 			scores[i] = 1/(1+exp(-(((float)scores_out[i])*S131_Op_output_4_OUT_SCALE)));
-		
-		//if(i==512) printf("\n");
-		//printf("%f\n",scores[i] );
 		
 		for(int j=0;j<16;j++){
 			if(i<512)
 				boxes[(i*16)+j] = ((float)boxes_out[(i*16)+j])*S137_Op_output_5_OUT_SCALE;
 			else
 				boxes[(i*16)+j] = ((float)boxes_out[(i*16)+j])*S143_Op_output_6_OUT_SCALE;
-			//if(i==512) printf("\n");
-			//printf("%f\n",boxes[i*16+j]);
 		}
   	}
 
@@ -249,10 +241,10 @@ int start()
 
   	printBboxes_forPython(bboxes);
 
-  	for(int i=0;i<MAX_BB_OUT;i++){
-  		if (bboxes[i].alive)
-  			printf("%f %d %d %d %d\n",bboxes[i].score, bboxes[i].xmin,bboxes[i].ymin,bboxes[i].w,bboxes[i].h);
-  	}
+  	//for(int i=0;i<MAX_BB_OUT;i++){
+  	//	if (bboxes[i].alive)
+  	//		printf("%f %d %d %d %d\n",bboxes[i].score, bboxes[i].xmin,bboxes[i].ymin,bboxes[i].w,bboxes[i].h);
+  	//}
 
   	pmsis_l2_malloc_free(scores,896*sizeof(float));
   	pmsis_l2_malloc_free(boxes,16*896*sizeof(float));
