@@ -67,7 +67,7 @@ READFS_FILES=$(abspath $(MODEL_TENSORS))
 # all depends on the model
 all:: model
 
-clean:: clean_at_model
+clean:: clean_model
 
 include model_rules.mk
 $(info APP_SRCS... $(APP_SRCS))
