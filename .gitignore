@@ -10,3 +10,4 @@ junit-reports
 png_images
 data/
 .ipynb*
+__pycache__
