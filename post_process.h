@@ -26,6 +26,8 @@
 
 #endif
 
+#define keypoints_coord_offset 4
+
 #define NON_MAX_THRES 0.5
 
 #define Y_SCALE 128
@@ -42,6 +44,18 @@ typedef struct
 	int    h;
 	float score;
 	uint8_t alive;
+	int16_t k1_x; //Left eye
+	int16_t k1_y;
+	int16_t k2_x; //Right Eye
+	int16_t k2_y;
+	int16_t k3_x; // Nose
+	int16_t k3_y;
+	int16_t k4_x; // Mouth
+	int16_t k4_y;
+	int16_t k5_x; // Left Ear
+	int16_t k5_y;
+	int16_t k6_x; // Right Ear
+	int16_t k6_y;
 }bbox_t;
 
 int post_process(float* scores,float * boxes,bbox_t* bboxes,int img_w,int img_h, float thres);

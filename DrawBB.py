@@ -26,12 +26,22 @@ fig,ax = plt.subplots(1)
 ax.imshow(im)
 
 # Copy Paste code here:
+
 rect = patches.Rectangle((23,28),44,44,linewidth=1,edgecolor='r',facecolor='none')
 ax.add_patch(rect)
+kp = patches.Circle((34,41),radius=1,color='green')
+ax.add_patch(kp)
+kp = patches.Circle((53,40),radius=1,color='green')
+ax.add_patch(kp)
+kp = patches.Circle((44,51),radius=1,color='green')
+ax.add_patch(kp)
+kp = patches.Circle((45,61),radius=1,color='green')
+ax.add_patch(kp)
+kp = patches.Circle((26,46),radius=1,color='green')
+ax.add_patch(kp)
+kp = patches.Circle((65,43),radius=1,color='green')
+ax.add_patch(kp)
 
 ################################
-
-# Add the patch to the Axes
-ax.add_patch(rect)
 
 plt.show()

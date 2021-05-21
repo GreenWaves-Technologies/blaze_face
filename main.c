@@ -75,19 +75,38 @@ static void softmax(float *input, int input_len)
 }
 
 void printBboxes_forPython(bbox_t *boundbxs){
-    printf("\n\n======================================================");
-    printf("\nThis can be copy-pasted to python to draw BoudingBoxs   ");
-    printf("\n\n");
+	printf("\n\n======================================================");
+	printf("\nThis can be copy-pasted to python to draw BoudingBoxs   ");
+	printf("\n\n");
 
-    for (int counter=0;counter< MAX_BB_OUT;counter++){
-        if(boundbxs[counter].alive)
-            printf("rect = patches.Rectangle((%d,%d),%d,%d,linewidth=1,edgecolor='r',facecolor='none')\nax.add_patch(rect)\n",
-                boundbxs[counter].ymin,
-                boundbxs[counter].xmin,
-                boundbxs[counter].h,
-                boundbxs[counter].w
-                );
-    }//
+	for (int counter=0;counter< MAX_BB_OUT;counter++){
+		if(boundbxs[counter].alive){
+			printf("rect = patches.Rectangle((%d,%d),%d,%d,linewidth=1,edgecolor='r',facecolor='none')\nax.add_patch(rect)\n",
+				boundbxs[counter].ymin,
+				boundbxs[counter].xmin,
+				boundbxs[counter].h,
+				boundbxs[counter].w
+				);
+			printf("kp = patches.Circle((%d,%d),radius=1,color='green')\nax.add_patch(kp)\n",
+				boundbxs[counter].k1_y,
+				boundbxs[counter].k1_x);
+			printf("kp = patches.Circle((%d,%d),radius=1,color='green')\nax.add_patch(kp)\n",
+				boundbxs[counter].k2_y,
+				boundbxs[counter].k2_x);
+			printf("kp = patches.Circle((%d,%d),radius=1,color='green')\nax.add_patch(kp)\n",
+				boundbxs[counter].k3_y,
+				boundbxs[counter].k3_x);
+			printf("kp = patches.Circle((%d,%d),radius=1,color='green')\nax.add_patch(kp)\n",
+				boundbxs[counter].k4_y,
+				boundbxs[counter].k4_x);
+			printf("kp = patches.Circle((%d,%d),radius=1,color='green')\nax.add_patch(kp)\n",
+				boundbxs[counter].k5_y,
+				boundbxs[counter].k5_x);
+			printf("kp = patches.Circle((%d,%d),radius=1,color='green')\nax.add_patch(kp)\n",
+				boundbxs[counter].k6_y,
+				boundbxs[counter].k6_x);
+		}
+	}//
 }
 
 int rect_intersect_area( short a_x, short a_y, short a_w, short a_h,
