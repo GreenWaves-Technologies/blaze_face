@@ -17,7 +17,8 @@ import matplotlib.patches as patches
 from PIL import Image
 import numpy as np
 
-im = np.array(Image.open('images/croppedpgmfile1.ppm'), dtype=np.uint8)
+im = np.array(Image.open('images/francesco_cropped_r.ppm'), dtype=np.uint8)
+#im = np.array(Image.open('images/croppedpgmfile1.ppm'), dtype=np.uint8)
 
 # Create figure and axes
 fig,ax = plt.subplots(1)
@@ -25,22 +26,21 @@ fig,ax = plt.subplots(1)
 # Display the image
 ax.imshow(im)
 
-# Copy Paste code here:
-
-rect = patches.Rectangle((23,28),44,44,linewidth=1,edgecolor='r',facecolor='none')
+rect = patches.Rectangle((12,30),46,46,linewidth=1,edgecolor='r',facecolor='none')
 ax.add_patch(rect)
-kp = patches.Circle((34,41),radius=1,color='green')
+kp = patches.Circle((26,43),radius=1,color='green')
 ax.add_patch(kp)
-kp = patches.Circle((53,40),radius=1,color='green')
+kp = patches.Circle((46,44),radius=1,color='green')
 ax.add_patch(kp)
-kp = patches.Circle((44,51),radius=1,color='green')
+kp = patches.Circle((38,57),radius=1,color='green')
 ax.add_patch(kp)
-kp = patches.Circle((45,61),radius=1,color='green')
+kp = patches.Circle((38,66),radius=1,color='green')
 ax.add_patch(kp)
-kp = patches.Circle((26,46),radius=1,color='green')
+kp = patches.Circle((14,46),radius=1,color='green')
 ax.add_patch(kp)
-kp = patches.Circle((65,43),radius=1,color='green')
+kp = patches.Circle((55,46),radius=1,color='green')
 ax.add_patch(kp)
+
 
 ################################
 

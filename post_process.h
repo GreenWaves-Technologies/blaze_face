@@ -4,8 +4,10 @@
 
 #include "pmsis.h"
 
-#define MAX_BB_OUT 15
+#define MAX_BB_OUT 50
 
+
+#define POST_PROCESS_OUTPUT_REVERSED
 #ifdef POST_PROCESS_OUTPUT_REVERSED
 
 #define box_offset_y 		1
@@ -44,18 +46,18 @@ typedef struct
 	int    h;
 	float score;
 	uint8_t alive;
-	int16_t k1_x; //Left eye
-	int16_t k1_y;
-	int16_t k2_x; //Right Eye
-	int16_t k2_y;
-	int16_t k3_x; // Nose
-	int16_t k3_y;
-	int16_t k4_x; // Mouth
-	int16_t k4_y;
-	int16_t k5_x; // Left Ear
-	int16_t k5_y;
-	int16_t k6_x; // Right Ear
-	int16_t k6_y;
+	int k1_x; //Left eye
+	int k1_y;
+	int k2_x; //Right Eye
+	int k2_y;
+	int k3_x; // Nose
+	int k3_y;
+	int k4_x; // Mouth
+	int k4_y;
+	int k5_x; // Left Ear
+	int k5_y;
+	int k6_x; // Right Ear
+	int k6_y;
 }bbox_t;
 
 int post_process(float* scores,float * boxes,bbox_t* bboxes,int img_w,int img_h, float thres);

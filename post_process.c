@@ -930,42 +930,47 @@ int post_process(float* scores,float * boxes,bbox_t* bboxes,int img_w,int img_h,
 		bboxes[i].alive=0;
 	}
 	for(int i=0;i<896;i++){
-		if(scores[i]>thres && det_bb<MAX_BB_OUT){
-			//printf("%d\n",i);
-	    	center_y = boxes[(i*16)+box_offset_y] /  Y_SCALE * anchors[(i*4)+3] + anchors[(i*4)+1];
-	    	center_x = boxes[(i*16)+box_offset_x] /  X_SCALE * anchors[(i*4)+2] + anchors[(i*4)+0];
-	    	//printf("%f %f \n",center_y,center_x);
-	    	bbh = boxes[(i*16)+box_offset_height] /  H_SCALE * anchors[(i*4)+3];
-	    	bbw = boxes[(i*16)+box_offset_width]  /  W_SCALE * anchors[(i*4)+2];
-	    	//printf("%f %f \n",bbh,bbw);
-	    	bboxes[det_bb].h =((boxes[(i*16)+box_offset_height] /  H_SCALE * anchors[(i*4)+3])*128);
-	    	bboxes[det_bb].w =((boxes[(i*16)+box_offset_width]  /  W_SCALE * anchors[(i*4)+2])*128);
-	    	bboxes[det_bb].xmin = ((center_x - 0.5 * bbw)*128);
-	    	bboxes[det_bb].ymin = ((center_y - 0.5 * bbh)*128);
-	    	//printf("%f %f %f \n",boxes[(i*16)+box_offset_y],anchors[(i*4)+3],anchors[(i*4)+1]);   
+		if(scores[i]>thres){
+			if(det_bb>MAX_BB_OUT){
+				printf("MAX BB REACHED!!!\n");
+				break;
+			}
+
+			center_x = boxes[(i*16)+box_offset_x] /  (float)X_SCALE * anchors[(i*4)+2] + anchors[(i*4)+0];
+	    	center_y = boxes[(i*16)+box_offset_y] /  (float)Y_SCALE * anchors[(i*4)+3] + anchors[(i*4)+1];
+	    		    	
+	    	bbh = boxes[(i*16)+box_offset_height] /  (float) H_SCALE * anchors[(i*4)+3];
+	    	bbw = boxes[(i*16)+box_offset_width]  /  (float) W_SCALE * anchors[(i*4)+2];
+	    	bboxes[det_bb].h =((boxes[(i*16)+box_offset_height] /  (float) H_SCALE * anchors[(i*4)+3])*img_h);
+	    	bboxes[det_bb].w =((boxes[(i*16)+box_offset_width]  /  (float) W_SCALE * anchors[(i*4)+2])*img_w);
+	    	bboxes[det_bb].xmin = ((center_x - 0.5 * bbw)*img_w);
+	    	bboxes[det_bb].ymin = ((center_y - 0.5 * bbh)*img_h);
+	    	
 	    	//Decoding Keypoints
-	    	bboxes[det_bb].k1_x=(boxes[(i*16)+keypoints_coord_offset+0+keypoint_offset_x] /  X_SCALE * anchors[(i*4)+2] + anchors[(i*4)+0])*128;
-	    	bboxes[det_bb].k1_y=(boxes[(i*16)+keypoints_coord_offset+0+keypoint_offset_y] /  Y_SCALE * anchors[(i*4)+3] + anchors[(i*4)+1])*128;
-	    	bboxes[det_bb].k2_x=(boxes[(i*16)+keypoints_coord_offset+2+keypoint_offset_x] /  X_SCALE * anchors[(i*4)+2] + anchors[(i*4)+0])*128;
-	    	bboxes[det_bb].k2_y=(boxes[(i*16)+keypoints_coord_offset+2+keypoint_offset_y] /  Y_SCALE * anchors[(i*4)+3] + anchors[(i*4)+1])*128;
-	    	bboxes[det_bb].k3_x=(boxes[(i*16)+keypoints_coord_offset+4+keypoint_offset_x] /  X_SCALE * anchors[(i*4)+2] + anchors[(i*4)+0])*128;
-	    	bboxes[det_bb].k3_y=(boxes[(i*16)+keypoints_coord_offset+4+keypoint_offset_y] /  Y_SCALE * anchors[(i*4)+3] + anchors[(i*4)+1])*128;
-	    	bboxes[det_bb].k4_x=(boxes[(i*16)+keypoints_coord_offset+6+keypoint_offset_x] /  X_SCALE * anchors[(i*4)+2] + anchors[(i*4)+0])*128;
-	    	bboxes[det_bb].k4_y=(boxes[(i*16)+keypoints_coord_offset+6+keypoint_offset_y] /  Y_SCALE * anchors[(i*4)+3] + anchors[(i*4)+1])*128;
-	    	bboxes[det_bb].k5_x=(boxes[(i*16)+keypoints_coord_offset+8+keypoint_offset_x] /  X_SCALE * anchors[(i*4)+2] + anchors[(i*4)+0])*128;
-	    	bboxes[det_bb].k5_y=(boxes[(i*16)+keypoints_coord_offset+8+keypoint_offset_y] /  Y_SCALE * anchors[(i*4)+3] + anchors[(i*4)+1])*128;
-	    	bboxes[det_bb].k6_x=(boxes[(i*16)+keypoints_coord_offset+10+keypoint_offset_x] /  X_SCALE * anchors[(i*4)+2] + anchors[(i*4)+0])*128;
-	    	bboxes[det_bb].k6_y=(boxes[(i*16)+keypoints_coord_offset+10+keypoint_offset_y] /  Y_SCALE * anchors[(i*4)+3] + anchors[(i*4)+1])*128;
+	    	bboxes[det_bb].k1_x=(boxes[(i*16)+keypoints_coord_offset+0+keypoint_offset_x] /  X_SCALE * anchors[(i*4)+2] + anchors[(i*4)+0])*img_w;
+	    	bboxes[det_bb].k1_y=(boxes[(i*16)+keypoints_coord_offset+0+keypoint_offset_y] /  Y_SCALE * anchors[(i*4)+3] + anchors[(i*4)+1])*img_h;
+	    	bboxes[det_bb].k2_x=(boxes[(i*16)+keypoints_coord_offset+2+keypoint_offset_x] /  X_SCALE * anchors[(i*4)+2] + anchors[(i*4)+0])*img_w;
+	    	bboxes[det_bb].k2_y=(boxes[(i*16)+keypoints_coord_offset+2+keypoint_offset_y] /  Y_SCALE * anchors[(i*4)+3] + anchors[(i*4)+1])*img_h;
+	    	bboxes[det_bb].k3_x=(boxes[(i*16)+keypoints_coord_offset+4+keypoint_offset_x] /  X_SCALE * anchors[(i*4)+2] + anchors[(i*4)+0])*img_w;
+	    	bboxes[det_bb].k3_y=(boxes[(i*16)+keypoints_coord_offset+4+keypoint_offset_y] /  Y_SCALE * anchors[(i*4)+3] + anchors[(i*4)+1])*img_h;
+	    	bboxes[det_bb].k4_x=(boxes[(i*16)+keypoints_coord_offset+6+keypoint_offset_x] /  X_SCALE * anchors[(i*4)+2] + anchors[(i*4)+0])*img_w;
+	    	bboxes[det_bb].k4_y=(boxes[(i*16)+keypoints_coord_offset+6+keypoint_offset_y] /  Y_SCALE * anchors[(i*4)+3] + anchors[(i*4)+1])*img_h;
+	    	bboxes[det_bb].k5_x=(boxes[(i*16)+keypoints_coord_offset+8+keypoint_offset_x] /  X_SCALE * anchors[(i*4)+2] + anchors[(i*4)+0])*img_w;
+	    	bboxes[det_bb].k5_y=(boxes[(i*16)+keypoints_coord_offset+8+keypoint_offset_y] /  Y_SCALE * anchors[(i*4)+3] + anchors[(i*4)+1])*img_h;
+	    	bboxes[det_bb].k6_x=(boxes[(i*16)+keypoints_coord_offset+10+keypoint_offset_x] /  X_SCALE * anchors[(i*4)+2] + anchors[(i*4)+0])*img_w;
+	    	bboxes[det_bb].k6_y=(boxes[(i*16)+keypoints_coord_offset+10+keypoint_offset_y] /  Y_SCALE * anchors[(i*4)+3] + anchors[(i*4)+1])*img_h;
 	
 			bboxes[det_bb].score=scores[i];
 	    	bboxes[det_bb++].alive=1;
-	    		    
 		}
 	}
 }
 
 
 /*
+
+['center_x', 'center_y', 'width', 'height'])
+
 	From Python Decoder
     def _decode_boxes_and_keypoints(self) -> tuple:
 	regressors_output = self.interpreter.get_tensor(self.regressors_output_index)

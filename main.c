@@ -49,31 +49,6 @@ static void RunNetwork()
 
 }
 
-static void softmax(float *input, int input_len)
-{
-    //assert (input != NULL);
-    //assert (input_len != 0);
-    int i;
-    float m;
-    /* Find maximum value from input array */
-    m = input[0];
-    for (i = 1; i < input_len; i++) {
-        if (input[i] > m) {
-            m = input[i];
-        }
-    }
-
-    float sum = 0;
-    for (i = 0; i < input_len; i++) {
-        sum += expf(input[i]-m);
-    }
-
-    for (i = 0; i < input_len; i++) {
-        input[i] = expf(input[i] - m - log(sum));
-
-    }    
-}
-
 void printBboxes_forPython(bbox_t *boundbxs){
 	printf("\n\n======================================================");
 	printf("\nThis can be copy-pasted to python to draw BoudingBoxs   ");
@@ -82,29 +57,29 @@ void printBboxes_forPython(bbox_t *boundbxs){
 	for (int counter=0;counter< MAX_BB_OUT;counter++){
 		if(boundbxs[counter].alive){
 			printf("rect = patches.Rectangle((%d,%d),%d,%d,linewidth=1,edgecolor='r',facecolor='none')\nax.add_patch(rect)\n",
-				boundbxs[counter].ymin,
 				boundbxs[counter].xmin,
-				boundbxs[counter].h,
-				boundbxs[counter].w
+				boundbxs[counter].ymin,
+				boundbxs[counter].w,
+				boundbxs[counter].h
 				);
 			printf("kp = patches.Circle((%d,%d),radius=1,color='green')\nax.add_patch(kp)\n",
-				boundbxs[counter].k1_y,
-				boundbxs[counter].k1_x);
+				boundbxs[counter].k1_x,
+				boundbxs[counter].k1_y);
 			printf("kp = patches.Circle((%d,%d),radius=1,color='green')\nax.add_patch(kp)\n",
-				boundbxs[counter].k2_y,
-				boundbxs[counter].k2_x);
+				boundbxs[counter].k2_x,
+				boundbxs[counter].k2_y);
 			printf("kp = patches.Circle((%d,%d),radius=1,color='green')\nax.add_patch(kp)\n",
-				boundbxs[counter].k3_y,
-				boundbxs[counter].k3_x);
+				boundbxs[counter].k3_x,
+				boundbxs[counter].k3_y);
 			printf("kp = patches.Circle((%d,%d),radius=1,color='green')\nax.add_patch(kp)\n",
-				boundbxs[counter].k4_y,
-				boundbxs[counter].k4_x);
+				boundbxs[counter].k4_x,
+				boundbxs[counter].k4_y);
 			printf("kp = patches.Circle((%d,%d),radius=1,color='green')\nax.add_patch(kp)\n",
-				boundbxs[counter].k5_y,
-				boundbxs[counter].k5_x);
+				boundbxs[counter].k5_x,
+				boundbxs[counter].k5_y);
 			printf("kp = patches.Circle((%d,%d),radius=1,color='green')\nax.add_patch(kp)\n",
-				boundbxs[counter].k6_y,
-				boundbxs[counter].k6_x);
+				boundbxs[counter].k6_x,
+				boundbxs[counter].k6_y);
 		}
 	}//
 }
@@ -240,22 +215,22 @@ int start()
 		printf("Alloc error\n");
 		pmsis_exit(-1);
 	}
-	
-  	for(int i=0;i<896;i++){
+	printf("\n");
+	for(int i=0;i<896;i++){
 		if(i<512)
 			scores[i] = 1/(1+exp(-(((float)scores_out[i])*S125_Op_output_3_OUT_SCALE)));
 		else
 			scores[i] = 1/(1+exp(-(((float)scores_out[i])*S131_Op_output_4_OUT_SCALE)));
-		
+
 		for(int j=0;j<16;j++){
 			if(i<512)
-				boxes[(i*16)+j] = ((float)boxes_out[(i*16)+j])*S137_Op_output_5_OUT_SCALE;
+				boxes[(i*16)+j] = ((float)boxes_out[(i*16)+j])*(float)S137_Op_output_5_OUT_SCALE;
 			else
-				boxes[(i*16)+j] = ((float)boxes_out[(i*16)+j])*S143_Op_output_6_OUT_SCALE;
-		}
-  	}
+				boxes[(i*16)+j] = ((float)boxes_out[(i*16)+j])*(float)S143_Op_output_6_OUT_SCALE;
+		}	
+	}
 
-  	post_process(scores,boxes,bboxes,128,128, 0.5);
+  	post_process(scores,boxes,bboxes,128,128, 0.5f);
   	non_max_suppress(bboxes);
 
   	printBboxes_forPython(bboxes);
@@ -300,7 +275,7 @@ void main()
 #define __XSTR(__s) __STR(__s)
 #define __STR(__s) #__s
     printf("\n\n\t *** NNTOOL MAIN APPL ***\n\n");
-    ImageName = __XSTR(AT_IMAGE);
+    ImageName=__XSTR(AT_IMAGE);
    	pmsis_kickoff((void *)start);
 }
 #endif

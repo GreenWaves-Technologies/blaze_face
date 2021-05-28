@@ -10,7 +10,8 @@ endif
 MODEL_PREFIX = face_detection_front
 include common.mk
 
-IMAGE=$(CURDIR)/images/croppedpgmfile1.ppm
+#IMAGE=$(CURDIR)/images/croppedpgmfile1.ppm
+IMAGE=$(CURDIR)/images/francesco_cropped_r.ppm
 
 io=host
 
@@ -58,7 +59,7 @@ APP_CFLAGS += -DAT_MODEL_PREFIX=$(MODEL_PREFIX) $(MODEL_SIZE_CFLAGS)
 APP_CFLAGS += -DSTACK_SIZE=$(CLUSTER_STACK_SIZE) -DSLAVE_STACK_SIZE=$(CLUSTER_SLAVE_STACK_SIZE)
 APP_CFLAGS += -DAT_IMAGE=$(IMAGE)
 
-APP_CFLAGS += -DPERF
+#APP_CFLAGS += -DPERF
 
 APP_LDFLAGS += -lm
 
