@@ -133,6 +133,33 @@ void non_max_suppress(bbox_t * boundbxs){
 }
 
 
+int checkResults(bbox_t *boundbxs){
+    int totAliveBB=0;
+    int x,y,w,h;
+
+    for(int idx=0;idx<MAX_BB_OUT;idx++){
+        if(boundbxs[idx].alive){
+			totAliveBB++;
+        	x = boundbxs[idx].xmin;
+            y = boundbxs[idx].ymin;
+            w = boundbxs[idx].w;
+            h = boundbxs[idx].h;
+        }
+    }
+
+    //Cabled check of result (not nice but effective) with +/- 3 px tollerance
+    if(totAliveBB!=1) return -1;
+    if( x > 12 + 1 || x < 12 - 1 )         return -1;
+    if( y > 30 + 1 || y < 30 - 1 )         return -1;
+    if( w > 46 + 1 || w < 46 - 1 )         return -1;
+    if( h > 46 + 1 || h < 46 - 1 )         return -1;
+
+    return 0;
+
+}
+
+
+
 int start()
 {
 
@@ -255,7 +282,9 @@ int start()
 				boxes[(i*16)+j] = (((int)boxes_out[(i*16)+j])*S143_Op_output_6_OUT_QSCALE) << (8 - S143_Op_output_6_OUT_QNORM);
 		}
 	}
-  	//Now scores are Q15 and boxes Q8
+  	//Now scores are Q15 and boxes Q8 
+  	//In fixed point there is no need to pass image coords since the NN has been trained for 128x128
+  	//[TODO] add scaling for different image sizes
 	post_process_fix(scores,boxes,bboxes,128,128, FP2FIX(0.5,15));
 	
   	#endif
@@ -276,8 +305,14 @@ int start()
   	pmsis_l2_malloc_free(boxes,16*896*sizeof(int16_t));
 	#endif
 
-	pmsis_l2_malloc_free(bboxes,MAX_BB_OUT*sizeof(bbox_t));
+	if(checkResults(bboxes)){
+		printf("Output is not correct...\n");
+		pmsis_exit(-1);
+	}else{
+		printf("Output correct!\n");
+	}
 
+	pmsis_l2_malloc_free(bboxes,MAX_BB_OUT*sizeof(bbox_t));
 
 	#ifndef __EMUL__
 		pmsis_l2_malloc_free(scores_out,sizeof(char)*(1*896));
@@ -288,6 +323,7 @@ int start()
 		free(Output_2);
 		free(Output_1);
 	#endif
+
 	printf("Ended\n");
 	return 0;
 }
