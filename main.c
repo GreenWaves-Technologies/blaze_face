@@ -198,15 +198,13 @@ int start()
 	}
 	#endif
 
-	
-
     printf("Destructing Network\n");
 	face_detection_frontCNN_Destruct();
 	printf("Encoder destructed\n\n");
 	
 /* ------------------------------------------------------------------------- */
 
-
+	#ifdef FLOAT_POST_PROCESS
 	float *scores = pmsis_l2_malloc(896*sizeof(float));
 	float *boxes  = pmsis_l2_malloc(16*896*sizeof(float));
 	bbox_t* bboxes = pmsis_l2_malloc(MAX_BB_OUT*sizeof(bbox_t));
@@ -231,8 +229,38 @@ int start()
 	}
 
   	post_process(scores,boxes,bboxes,128,128, 0.5f);
-  	non_max_suppress(bboxes);
+  	
+  	#else
 
+	int16_t *scores = pmsis_l2_malloc(896*sizeof(int16_t));
+	int16_t *boxes  = pmsis_l2_malloc(16*896*sizeof(int16_t));
+	bbox_t* bboxes = pmsis_l2_malloc(MAX_BB_OUT*sizeof(bbox_t));
+
+	if(scores==NULL || boxes==NULL || bboxes==NULL){
+		printf("Alloc error\n");
+		pmsis_exit(-1);
+	}
+	printf("\n");
+	for(int i=0;i<896;i++){
+		//Sigmoid input is Q12 and output Q15
+		if(i<512)
+			scores[i] = Sigmoid((((int)scores_out[i])*S125_Op_output_3_OUT_QSCALE)<< (12-S125_Op_output_3_OUT_QNORM));
+		else
+			scores[i] = Sigmoid((((int)scores_out[i])*S131_Op_output_4_OUT_QSCALE)<< (12-S131_Op_output_4_OUT_QNORM));
+
+		for(int j=0;j<16;j++){
+			if(i<512)
+				boxes[(i*16)+j] = (((int)boxes_out[(i*16)+j])*S137_Op_output_5_OUT_QSCALE) << (8 - S137_Op_output_5_OUT_QNORM);
+			else
+				boxes[(i*16)+j] = (((int)boxes_out[(i*16)+j])*S143_Op_output_6_OUT_QSCALE) << (8 - S143_Op_output_6_OUT_QNORM);
+		}
+	}
+  	//Now scores are Q15 and boxes Q8
+	post_process_fix(scores,boxes,bboxes,128,128, FP2FIX(0.5,15));
+	
+  	#endif
+
+  	non_max_suppress(bboxes);
   	printBboxes_forPython(bboxes);
 
   	//for(int i=0;i<MAX_BB_OUT;i++){
@@ -240,8 +268,14 @@ int start()
   	//		printf("%f %d %d %d %d\n",bboxes[i].score, bboxes[i].xmin,bboxes[i].ymin,bboxes[i].w,bboxes[i].h);
   	//}
 
+  	#ifdef FLOAT_POST_PROCESS
   	pmsis_l2_malloc_free(scores,896*sizeof(float));
   	pmsis_l2_malloc_free(boxes,16*896*sizeof(float));
+	#else
+  	pmsis_l2_malloc_free(scores,896*sizeof(int16_t));
+  	pmsis_l2_malloc_free(boxes,16*896*sizeof(int16_t));
+	#endif
+
 	pmsis_l2_malloc_free(bboxes,MAX_BB_OUT*sizeof(bbox_t));
 
 

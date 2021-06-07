@@ -5,9 +5,10 @@
 #include "pmsis.h"
 
 #define MAX_BB_OUT 50
-
+//#define FLOAT_POST_PROCESS
 
 #define POST_PROCESS_OUTPUT_REVERSED
+
 #ifdef POST_PROCESS_OUTPUT_REVERSED
 
 #define box_offset_y 		1
@@ -37,6 +38,11 @@
 #define W_SCALE 128
 #define H_SCALE 128
 
+#define INV_X_SCALE_Q7 FP2FIX(0.0078125,7)
+#define INV_Y_SCALE_Q7 FP2FIX(0.0078125,7)
+#define INV_W_SCALE_Q7 FP2FIX(0.0078125,7)
+#define INV_H_SCALE_Q7 FP2FIX(0.0078125,7)
+
 
 typedef struct 
 {
@@ -60,6 +66,6 @@ typedef struct
 	int k6_y;
 }bbox_t;
 
-int post_process(float* scores,float * boxes,bbox_t* bboxes,int img_w,int img_h, float thres);
-
+void post_process(float* scores,float * boxes,bbox_t* bboxes,int img_w,int img_h, float thres);
+void post_process_fix(int16_t* scores,int16_t * boxes,bbox_t* bboxes,int img_w,int img_h, int16_t thres);
 #endif //__POST_PROCESS_H__
