@@ -2,7 +2,7 @@
 
 This is a repository showing Blaze Face face detector + Facial Landmarks on GAP Processors. 
 
-The tflite file is take from Media Pipe Repository.
+The tflite file comes from (Media Pipe Repository)[https://google.github.io/mediapipe/solutions/face_detection.html].
 
 The build command is:
 

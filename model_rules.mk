@@ -1,4 +1,4 @@
-# Copyright (C) 2017 GreenWaves Technologies
+# Copyright (C) 2021 GreenWaves Technologies
 # All rights reserved.
 
 # This software may be modified and distributed under the terms

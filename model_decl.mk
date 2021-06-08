@@ -1,8 +1,12 @@
-# Copyright (C) 2017 GreenWaves Technologies
+# Copyright (C) 2021 GreenWaves Technologies
 # All rights reserved.
 
 # This software may be modified and distributed under the terms
 # of the BSD license.  See the LICENSE file for details.
+
+# The training of the model is slightly different depending on
+# the quantization. This is because in 8 bit mode we used signed
+# 8 bit so the input to the model needs to be shifted 1 bit
 
 MODEL_SUFFIX?=
 
