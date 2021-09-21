@@ -3,7 +3,7 @@
 #define __POST_PROCESS_H__
 
 #include "pmsis.h"
-
+#include "Gap.h"
 #define MAX_BB_OUT 50
 //#define FLOAT_POST_PROCESS
 
