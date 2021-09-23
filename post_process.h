@@ -66,6 +66,28 @@ typedef struct
 	int k6_y;
 }bbox_t;
 
-void post_process(float* scores,float * boxes,bbox_t* bboxes,int img_w,int img_h, float thres);
+typedef struct 
+{
+	float xmin;
+	float ymin;
+	float w;
+	float h;
+	float score;
+	uint8_t alive;
+	float k1_x; //Left eye
+	float k1_y;
+	float k2_x; //Right Eye
+	float k2_y;
+	float k3_x; // Nose
+	float k3_y;
+	float k4_x; // Mouth
+	float k4_y;
+	float k5_x; // Left Ear
+	float k5_y;
+	float k6_x; // Right Ear
+	float k6_y;
+}bbox_float_t;
+
+void post_process(float* scores,float * boxes,bbox_float_t* bboxes,int img_w,int img_h, float thres);
 void post_process_fix(int16_t* scores,int16_t * boxes,bbox_t* bboxes,int img_w,int img_h, int16_t thres);
 #endif //__POST_PROCESS_H__

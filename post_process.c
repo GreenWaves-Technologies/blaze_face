@@ -5,7 +5,7 @@
 #ifdef FLOAT_POST_PROCESS
 #include "anchors.h"
 
-void post_process(float* scores,float * boxes,bbox_t* bboxes,int img_w,int img_h, float thres){
+void post_process(float* scores,float * boxes,bbox_float_t* bboxes,int img_w,int img_h, float thres){
     float center_y;
     float center_x;
     float bbh;

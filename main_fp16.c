@@ -27,13 +27,11 @@
 #define __XSTR(__s) __STR(__s)
 #define __STR(__s) #__s 
 
-typedef signed char NETWORK_OUT_TYPE;
-
-signed char* scores_out;
-signed char* boxes_out;
+F16* scores_out;
+F16* boxes_out;
 
 AT_HYPERFLASH_FS_EXT_ADDR_TYPE face_detection_front_L3_Flash = 0;
-signed char Input_1[AT_INPUT_SIZE];
+F16 Input_1[AT_INPUT_SIZE];
 char *ImageName = NULL;
 
 static void RunNetwork()
@@ -49,52 +47,52 @@ static void RunNetwork()
 
 }
 
-void printBboxes_forPython(bbox_t *boundbxs){
+void printBboxes_forPython(bbox_float_t *boundbxs){
 	printf("\n\n======================================================");
 	printf("\nThis can be copy-pasted to python to draw BoudingBoxs   ");
 	printf("\n\n");
 
 	for (int counter=0;counter< MAX_BB_OUT;counter++){
 		if(boundbxs[counter].alive){
-			printf("rect = patches.Rectangle((%d,%d),%d,%d,linewidth=1,edgecolor='r',facecolor='none')\nax.add_patch(rect)\n",
+			printf("rect = patches.Rectangle((%f,%f),%f,%f,linewidth=1,edgecolor='r',facecolor='none')\nax.add_patch(rect)\n",
 				boundbxs[counter].xmin,
 				boundbxs[counter].ymin,
 				boundbxs[counter].w,
 				boundbxs[counter].h
 				);
-			printf("kp = patches.Circle((%d,%d),radius=1,color='green')\nax.add_patch(kp)\n",
+			printf("kp = patches.Circle((%f,%f),radius=1,color='green')\nax.add_patch(kp)\n",
 				boundbxs[counter].k1_x,
 				boundbxs[counter].k1_y);
-			printf("kp = patches.Circle((%d,%d),radius=1,color='green')\nax.add_patch(kp)\n",
+			printf("kp = patches.Circle((%f,%f),radius=1,color='green')\nax.add_patch(kp)\n",
 				boundbxs[counter].k2_x,
 				boundbxs[counter].k2_y);
-			printf("kp = patches.Circle((%d,%d),radius=1,color='green')\nax.add_patch(kp)\n",
+			printf("kp = patches.Circle((%f,%f),radius=1,color='green')\nax.add_patch(kp)\n",
 				boundbxs[counter].k3_x,
 				boundbxs[counter].k3_y);
-			printf("kp = patches.Circle((%d,%d),radius=1,color='green')\nax.add_patch(kp)\n",
+			printf("kp = patches.Circle((%f,%f),radius=1,color='green')\nax.add_patch(kp)\n",
 				boundbxs[counter].k4_x,
 				boundbxs[counter].k4_y);
-			printf("kp = patches.Circle((%d,%d),radius=1,color='green')\nax.add_patch(kp)\n",
+			printf("kp = patches.Circle((%f,%f),radius=1,color='green')\nax.add_patch(kp)\n",
 				boundbxs[counter].k5_x,
 				boundbxs[counter].k5_y);
-			printf("kp = patches.Circle((%d,%d),radius=1,color='green')\nax.add_patch(kp)\n",
+			printf("kp = patches.Circle((%f,%f),radius=1,color='green')\nax.add_patch(kp)\n",
 				boundbxs[counter].k6_x,
 				boundbxs[counter].k6_y);
 		}
 	}//
 }
 
-int rect_intersect_area( short a_x, short a_y, short a_w, short a_h,
-                         short b_x, short b_y, short b_w, short b_h ){
+float rect_intersect_area(float a_x, float a_y, float a_w, float a_h,
+                         float b_x, float b_y, float b_w, float b_h ){
 
     #define MIN(a,b) ((a) < (b) ? (a) : (b))
     #define MAX(a,b) ((a) > (b) ? (a) : (b))
 
-    int x = MAX(a_x,b_x);
-    int y = MAX(a_y,b_y);
+    float x = MAX(a_x,b_x);
+    float y = MAX(a_y,b_y);
 
-    int size_x = MIN(a_x+a_w,b_x+b_w) - x;
-    int size_y = MIN(a_y+a_h,b_y+b_h) - y;
+    float size_x = MIN(a_x+a_w,b_x+b_w) - x;
+    float size_y = MIN(a_y+a_h,b_y+b_h) - y;
 
     if(size_x <=0 || size_x <=0)
         return 0;
@@ -105,7 +103,7 @@ int rect_intersect_area( short a_x, short a_y, short a_w, short a_h,
     #undef MIN
 }
 
-void non_max_suppress(bbox_t * boundbxs){
+void non_max_suppress(bbox_float_t * boundbxs){
 
     int idx,idx_int;
 
@@ -121,7 +119,7 @@ void non_max_suppress(bbox_t * boundbxs){
                 continue;
 
             //check the intersection between rects
-            int intersection = rect_intersect_area(boundbxs[idx].xmin,boundbxs[idx].ymin,boundbxs[idx].w,boundbxs[idx].h,
+            float intersection = rect_intersect_area(boundbxs[idx].xmin,boundbxs[idx].ymin,boundbxs[idx].w,boundbxs[idx].h,
                                                    boundbxs[idx_int].xmin,boundbxs[idx_int].ymin,boundbxs[idx_int].w,boundbxs[idx_int].h);
 
             if(intersection >= NON_MAX_THRES){ //is non-max
@@ -133,9 +131,9 @@ void non_max_suppress(bbox_t * boundbxs){
 }
 
 
-int checkResults(bbox_t *boundbxs){
+int checkResults(bbox_float_t *boundbxs){
     int totAliveBB=0;
-    int x,y,w,h;
+    float x,y,w,h;
 
     for(int idx=0;idx<MAX_BB_OUT;idx++){
         if(boundbxs[idx].alive){
@@ -164,8 +162,9 @@ int start()
 {
 
 	#ifndef __EMUL__
-		boxes_out=pmsis_l2_malloc(sizeof(char)*(16*896));
-		scores_out=pmsis_l2_malloc(sizeof(char)*(1*896));
+		unsigned char * ImageIn = (unsigned char *) pmsis_l2_malloc(sizeof(char)*(AT_INPUT_SIZE));
+		boxes_out=pmsis_l2_malloc(sizeof(F16)*(16*896));
+		scores_out=pmsis_l2_malloc(sizeof(F16)*(1*896));
 	
 		/*-----------------------OPEN THE CLUSTER--------------------------*/
 		struct pi_device cluster_dev;
@@ -180,7 +179,7 @@ int start()
 
 	printf("Reading image %s\n", ImageName);
 	//Reading Image from Bridge
-	if (ReadImageFromFile(ImageName, AT_INPUT_WIDTH, AT_INPUT_HEIGHT, AT_INPUT_COLORS, Input_1, AT_INPUT_SIZE*sizeof(char), IMGIO_OUTPUT_CHAR, 0)) {
+	if (ReadImageFromFile(ImageName, AT_INPUT_WIDTH, AT_INPUT_HEIGHT, AT_INPUT_COLORS, ImageIn, AT_INPUT_SIZE*sizeof(char), IMGIO_OUTPUT_CHAR, 0)) {
 	printf("Failed to load image %s\n", ImageName);
 	return 1;
 	}
@@ -191,6 +190,14 @@ int start()
 		return -1;
 	}
 	printf("Graph constructor was OK\n");
+
+	for (int h=0; h<AT_INPUT_HEIGHT; h++) {
+		for (int w=0; w<AT_INPUT_WIDTH; w++) {
+			for (int c=0; c<AT_INPUT_COLORS; c++) {
+				Input_1[c*AT_INPUT_WIDTH*AT_INPUT_HEIGHT+h*AT_INPUT_WIDTH+w] = (((F16) ImageIn[h*AT_INPUT_WIDTH*AT_INPUT_COLORS+w*AT_INPUT_COLORS+c]) / 128) - 1.0f;
+			}
+		}
+	}
 
 	#ifndef __EMUL__
 		/*--------------------------TASK SETUP------------------------------*/
@@ -227,14 +234,12 @@ int start()
 
     printf("Destructing Network\n");
 	face_detection_frontCNN_Destruct();
-	printf("Encoder destructed\n\n");
 	
-/* ------------------------------------------------------------------------- */
+// /* ------------------------------------------------------------------------- */
 
-	#ifdef FLOAT_POST_PROCESS
 	float *scores = pmsis_l2_malloc(896*sizeof(float));
 	float *boxes  = pmsis_l2_malloc(16*896*sizeof(float));
-	bbox_t* bboxes = pmsis_l2_malloc(MAX_BB_OUT*sizeof(bbox_t));
+	bbox_float_t* bboxes = pmsis_l2_malloc(MAX_BB_OUT*sizeof(bbox_float_t));
 
 	if(scores==NULL || boxes==NULL || bboxes==NULL){
 		printf("Alloc error\n");
@@ -243,67 +248,30 @@ int start()
 	printf("\n");
 	for(int i=0;i<896;i++){
 		if(i<512)
-			scores[i] = 1/(1+exp(-(((float)scores_out[i])*S125_Op_output_3_OUT_SCALE)));
+			scores[i] = 1/(1+exp(-(((float)scores_out[i]))));
 		else
-			scores[i] = 1/(1+exp(-(((float)scores_out[i])*S131_Op_output_4_OUT_SCALE)));
+			scores[i] = 1/(1+exp(-(((float)scores_out[i]))));
 
 		for(int j=0;j<16;j++){
 			if(i<512)
-				boxes[(i*16)+j] = ((float)boxes_out[(i*16)+j])*(float)S137_Op_output_5_OUT_SCALE;
+				boxes[(i*16)+j] = ((float)boxes_out[(i*16)+j]);
 			else
-				boxes[(i*16)+j] = ((float)boxes_out[(i*16)+j])*(float)S143_Op_output_6_OUT_SCALE;
+				boxes[(i*16)+j] = ((float)boxes_out[(i*16)+j]);
 		}	
 	}
 
   	post_process(scores,boxes,bboxes,128,128, 0.5f);
-  	
-  	#else
-
-	int16_t *scores = pmsis_l2_malloc(896*sizeof(int16_t));
-	int16_t *boxes  = pmsis_l2_malloc(16*896*sizeof(int16_t));
-	bbox_t* bboxes = pmsis_l2_malloc(MAX_BB_OUT*sizeof(bbox_t));
-
-	if(scores==NULL || boxes==NULL || bboxes==NULL){
-		printf("Alloc error\n");
-		pmsis_exit(-1);
-	}
-	printf("\n");
-	for(int i=0;i<896;i++){
-		//Sigmoid input is Q12 and output Q15
-		if(i<512)
-			scores[i] = Sigmoid((((int)scores_out[i])*S125_Op_output_3_OUT_QSCALE)<< (12-S125_Op_output_3_OUT_QNORM));
-		else
-			scores[i] = Sigmoid((((int)scores_out[i])*S131_Op_output_4_OUT_QSCALE)<< (12-S131_Op_output_4_OUT_QNORM));
-
-		for(int j=0;j<16;j++){
-			if(i<512)
-				boxes[(i*16)+j] = (((int)boxes_out[(i*16)+j])*S137_Op_output_5_OUT_QSCALE) << (8 - S137_Op_output_5_OUT_QNORM);
-			else
-				boxes[(i*16)+j] = (((int)boxes_out[(i*16)+j])*S143_Op_output_6_OUT_QSCALE) << (8 - S143_Op_output_6_OUT_QNORM);
-		}
-	}
-  	//Now scores are Q15 and boxes Q8 
-  	//In fixed point there is no need to pass image coords since the NN has been trained for 128x128
-  	//[TODO] add scaling for different image sizes
-	post_process_fix(scores,boxes,bboxes,128,128, FP2FIX(0.5,15));
-	
-  	#endif
 
   	non_max_suppress(bboxes);
   	printBboxes_forPython(bboxes);
 
-  	//for(int i=0;i<MAX_BB_OUT;i++){
-  	//	if (bboxes[i].alive)
-  	//		printf("%f %d %d %d %d\n",bboxes[i].score, bboxes[i].xmin,bboxes[i].ymin,bboxes[i].w,bboxes[i].h);
-  	//}
+  	for(int i=0;i<MAX_BB_OUT;i++){
+  		if (bboxes[i].alive)
+  			printf("%f %f %f %f %f\n",bboxes[i].score, bboxes[i].xmin,bboxes[i].ymin,bboxes[i].w,bboxes[i].h);
+  	}
 
-  	#ifdef FLOAT_POST_PROCESS
   	pmsis_l2_malloc_free(scores,896*sizeof(float));
   	pmsis_l2_malloc_free(boxes,16*896*sizeof(float));
-	#else
-  	pmsis_l2_malloc_free(scores,896*sizeof(int16_t));
-  	pmsis_l2_malloc_free(boxes,16*896*sizeof(int16_t));
-	#endif
 
 	if(checkResults(bboxes)){
 		printf("Output is not correct...\n");
@@ -315,8 +283,8 @@ int start()
 	pmsis_l2_malloc_free(bboxes,MAX_BB_OUT*sizeof(bbox_t));
 
 	#ifndef __EMUL__
-		pmsis_l2_malloc_free(scores_out,sizeof(char)*(1*896));
-		pmsis_l2_malloc_free(boxes_out,sizeof(char)*(16*896));
+		pmsis_l2_malloc_free(scores_out,sizeof(F16)*(1*896));
+		pmsis_l2_malloc_free(boxes_out,sizeof(F16)*(16*896));
 
 		pmsis_exit(0);
 	#else
