@@ -12,7 +12,8 @@ chips:
 variants:
     std:
         name: standard
-        # no tags : will not run
-        tags: []
+        tags:
+            - integration
+            - release
         duration: standard
         flags: ~
