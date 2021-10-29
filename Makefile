@@ -27,22 +27,11 @@ io=stdout
 QUANT_BITS=8
 BUILD_DIR=BUILD
 
-PMSIS_OS?=pulpos
+#PMSIS_OS?=pulpos
 
 $(info Building GAP8 mode with $(QUANT_BITS) bit quantization)
 
-ifeq ($(MODEL_FP16), 1)
-	NNTOOL_SCRIPT=model/nntool_script_fp16
-	MODEL_SUFFIX = _FP16
-	MAIN = main_fp16.c
-	APP_CFLAGS += -DFLOAT_POST_PROCESS -DSTD_FLOAT
-	CLUSTER_STACK_SIZE=6048
-else
-	MODEL_SQ8=1
-	NNTOOL_SCRIPT=model/nntool_script
-	MODEL_SUFFIX = _SQ8BIT
-	MAIN = main.c
-endif
+MAIN ?= main.c
 
 #LOAD A TFLITE QUANTIZED GRAPH
 NNTOOL_EXTRA_FLAGS=
