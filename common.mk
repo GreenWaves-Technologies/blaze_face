@@ -39,7 +39,12 @@ ifeq ($(MODEL_NE16), 1)
 	MODEL_SUFFIX = _NE16
 	CLUSTER_STACK_SIZE=6048
 else
+ifeq ($(MODEL_HWC), 1)
+        NNTOOL_SCRIPT=model/nntool_script_hwc
+        MODEL_SUFFIX = _HWC
+else
 	NNTOOL_SCRIPT=model/nntool_script
 	MODEL_SUFFIX = _SQ8BIT
+endif
 endif
 endif
