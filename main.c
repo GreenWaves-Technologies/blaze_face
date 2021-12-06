@@ -243,13 +243,13 @@ int start()
 	printf("\n");
 	for(int i=0;i<896;i++){
 		if(i<512)
-			scores[i] = 1/(1+exp(-(((float)scores_out[i])*face_detection_front_Output_3_OUT_SCALE)));
+			scores[i] = 1/(1+exp(-(((float)scores_out[i])*face_detection_front_Output_2_OUT_SCALE)));
 		else
 			scores[i] = 1/(1+exp(-(((float)scores_out[i])*face_detection_front_Output_4_OUT_SCALE)));
 
 		for(int j=0;j<16;j++){
 			if(i<512)
-				boxes[(i*16)+j] = ((float)boxes_out[(i*16)+j])*(float)face_detection_front_Output_5_OUT_SCALE;
+				boxes[(i*16)+j] = ((float)boxes_out[(i*16)+j])*(float)face_detection_front_Output_1_OUT_SCALE;
 			else
 				boxes[(i*16)+j] = ((float)boxes_out[(i*16)+j])*(float)face_detection_front_Output_6_OUT_SCALE;
 		}	
@@ -271,13 +271,13 @@ int start()
 	for(int i=0;i<896;i++){
 		//Sigmoid input is Q12 and output Q15
 		if(i<512)
-			scores[i] = Sigmoid((((int)scores_out[i])*face_detection_front_Output_3_OUT_QSCALE)<< (12-face_detection_front_Output_3_OUT_QNORM));
+			scores[i] = Sigmoid((((int)scores_out[i])*face_detection_front_Output_2_OUT_QSCALE)<< (12-face_detection_front_Output_2_OUT_QNORM));
 		else
 			scores[i] = Sigmoid((((int)scores_out[i])*face_detection_front_Output_4_OUT_QSCALE)<< (12-face_detection_front_Output_4_OUT_QNORM));
 
 		for(int j=0;j<16;j++){
 			if(i<512)
-				boxes[(i*16)+j] = (((int)boxes_out[(i*16)+j])*face_detection_front_Output_5_OUT_QSCALE) << (8 - face_detection_front_Output_5_OUT_QNORM);
+				boxes[(i*16)+j] = (((int)boxes_out[(i*16)+j])*face_detection_front_Output_1_OUT_QSCALE) << (8 - face_detection_front_Output_1_OUT_QNORM);
 			else
 				boxes[(i*16)+j] = (((int)boxes_out[(i*16)+j])*face_detection_front_Output_6_OUT_QSCALE) << (8 - face_detection_front_Output_6_OUT_QNORM);
 		}
