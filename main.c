@@ -245,13 +245,13 @@ int start()
 		if(i<512)
 			scores[i] = 1/(1+exp(-(((float)scores_out[i])*face_detection_front_Output_2_OUT_SCALE)));
 		else
-			scores[i] = 1/(1+exp(-(((float)scores_out[i])*face_detection_front_Output_4_OUT_SCALE)));
+			scores[i] = 1/(1+exp(-(((float)scores_out[i])*face_detection_front_Output_3_OUT_SCALE)));
 
 		for(int j=0;j<16;j++){
 			if(i<512)
 				boxes[(i*16)+j] = ((float)boxes_out[(i*16)+j])*(float)face_detection_front_Output_1_OUT_SCALE;
 			else
-				boxes[(i*16)+j] = ((float)boxes_out[(i*16)+j])*(float)face_detection_front_Output_6_OUT_SCALE;
+				boxes[(i*16)+j] = ((float)boxes_out[(i*16)+j])*(float)face_detection_front_Output_4_OUT_SCALE;
 		}	
 	}
 
