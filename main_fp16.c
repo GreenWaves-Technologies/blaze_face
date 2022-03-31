@@ -42,7 +42,7 @@ static void RunNetwork()
 	gap_cl_resethwtimer();
 #endif
   printf("Running on cluster\n");
-  face_detection_frontCNN(Input_1,scores_out,&(scores_out[512]),boxes_out,&(boxes_out[512*16]));
+  face_detection_frontCNN(Input_1,boxes_out,scores_out,&(scores_out[512]),&(boxes_out[512*16]));
   printf("Runner completed\n");
 
 }
