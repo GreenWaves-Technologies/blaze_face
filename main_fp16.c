@@ -207,11 +207,8 @@ int start()
 			pmsis_exit(-1);
 		}
 		printf("Stack size is %d and %d\n",STACK_SIZE,SLAVE_STACK_SIZE );
-		memset(task_encoder, 0, sizeof(struct pi_cluster_task));
-		task_encoder->entry = &RunNetwork;
-		task_encoder->stack_size = STACK_SIZE;
-		task_encoder->slave_stack_size = SLAVE_STACK_SIZE;
-		task_encoder->arg = NULL;
+		pi_cluster_task(task_encoder, &RunNetwork, NULL);
+		pi_cluster_task_stacks(task_encoder, NULL, SLAVE_STACK_SIZE);
 		pi_cluster_send_task_to_cl(&cluster_dev, task_encoder);
 	#else
 		RunNetwork();
