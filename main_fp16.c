@@ -170,6 +170,7 @@ int start()
 		struct pi_device cluster_dev;
 		struct pi_cluster_conf conf;
 		pi_cluster_conf_init(&conf);
+		conf.cc_stack_size = STACK_SIZE;
 		pi_open_from_conf(&cluster_dev, (void *)&conf);
 		pi_cluster_open(&cluster_dev);
 	#else
