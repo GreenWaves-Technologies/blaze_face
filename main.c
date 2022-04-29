@@ -44,7 +44,9 @@ static void RunNetwork()
 	gap_cl_resethwtimer();
 #endif
   printf("Running on cluster\n");
+  GPIO_HIGH();
   face_detection_frontCNN(Input_1,boxes_out,scores_out,&(scores_out[512]),&(boxes_out[512*16]));
+  GPIO_LOW();
   printf("Runner completed\n");
 
 }
@@ -164,6 +166,7 @@ int start()
 {
 
 	#ifndef __EMUL__
+    	OPEN_GPIO_MEAS();
 		boxes_out=pmsis_l2_malloc(sizeof(char)*(16*896));
 		scores_out=pmsis_l2_malloc(sizeof(char)*(1*896));
 	
