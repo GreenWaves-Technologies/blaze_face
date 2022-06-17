@@ -5,17 +5,23 @@ fi
 
 LOGDIR=logs
 mkdir -p $LOGDIR/
-AT_LOG_PARSER=${GAP_SDK_HOME}/nn_menu/power_meas_utils/check_at_model.py
-OUT_LOG_PARSER=${GAP_SDK_HOME}/nn_menu/power_meas_utils/check_run.py
+AT_LOG_CHECK=${GAP_SDK_HOME}/nn_menu/power_meas_utils/check_at_model.py
+OUT_LOG_CHECK=${GAP_SDK_HOME}/nn_menu/power_meas_utils/check_run.py
 PICO_MEAS_SCRIPT=${GAP_SDK_HOME}/nn_menu/power_meas_utils/ps4444Measure.py
+LOG_TO_CSV=${GAP_SDK_HOME}/nn_menu/power_meas_utils/log_to_csv.py
 
 ##########################################
 MODES=('CHW' 'NE16' 'HWC' 'FP16_CHW' 'FP16_HWC')
 
 export RAM_TYPE="OSPI"
 export FLASH_TYPE="OSPI"
-export AT_LOG_LEVEL=2
-export PMSIS_OS=freertos
+export PMSIS_OS=pulpos
+
+set -e
+python ${GAP_SDK_HOME}/nn_menu/power_meas_utils/check_pico.py
+set +e
+
+MODEL_NAME="BlazeFace"
 for MODE in "${MODES[@]}"
 do
 	case $MODE in
@@ -49,31 +55,22 @@ do
 			exit 1
 	esac
 
-	MODEL_EXT="blaze_face"
-	if [ ${MODEL_NE16} -gt 0 ]; then
-		MODEL_EXT="${MODEL_EXT}_NE16"
-	else
-		if [ ${MODEL_FP16} -gt 0 ]; then
-			MODEL_EXT="${MODEL_EXT}_FP16"
-		fi
-		if [ ${MODEL_HWC} -gt 0 ]; then
-			MODEL_EXT="${MODEL_EXT}_HWC"
-		fi
-	fi
-	echo "Running mode $MODE: MODEL_NE16=$MODEL_NE16 MODEL_FP16=$MODEL_FP16 MODEL_HWC=$MODEL_HWC RAM_TYPE=$RAM_TYPE FLASH_TYPE=$FLASH_TYPE AT_LOG_LEVEL=$AT_LOG_LEVEL"
-	make clean clean_model model MODEL_NE16=$MODEL_NE16 MODEL_FP16=$MODEL_FP16 MODEL_HWC=$MODEL_HWC RAM_TYPE=$RAM_TYPE FLASH_TYPE=$FLASH_TYPE AT_LOG_LEVEL=$AT_LOG_LEVEL \
+	MODEL_EXT="${MODEL_NAME}_${MODE}"
+
+	echo "Running mode $MODE: GPIO_MEAS=1 MODEL_NE16=$MODEL_NE16 MODEL_FP16=$MODEL_FP16 MODEL_HWC=$MODEL_HWC RAM_TYPE=$RAM_TYPE FLASH_TYPE=$FLASH_TYPE"
+	make clean_model model GPIO_MEAS=1 MODEL_NE16=$MODEL_NE16 MODEL_FP16=$MODEL_FP16 MODEL_HWC=$MODEL_HWC RAM_TYPE=$RAM_TYPE FLASH_TYPE=$FLASH_TYPE \
 			> $LOGDIR/atmodel\_${MODEL_EXT}.txt
 	# check if the autotiler found a solution
-	python3 $AT_LOG_LEVEL $LOGDIR/atmodel\_${MODEL_EXT}.txt
+	python3 $AT_LOG_CHECK $LOGDIR/atmodel\_${MODEL_EXT}.txt
 	if [ $? -eq "1" ]; then
 		echo "Something went wrong with the model generation"
 		continue
 	fi
 
 	# compile and flash
-	make all -j MODEL_NE16=$MODEL_NE16 MODEL_FP16=$MODEL_FP16 MODEL_HWC=$MODEL_HWC RAM_TYPE=$RAM_TYPE FLASH_TYPE=$FLASH_TYPE AT_LOG_LEVEL=$AT_LOG_LEVEL
+	make all -j GPIO_MEAS=1 MODEL_NE16=$MODEL_NE16 MODEL_FP16=$MODEL_FP16 MODEL_HWC=$MODEL_HWC RAM_TYPE=$RAM_TYPE FLASH_TYPE=$FLASH_TYPE
 
-	for LOW_POWER_MODE in 0 ;
+	for LOW_POWER_MODE in 0 1 ;
 	do
 		if [ $LOW_POWER_MODE -gt 0 ]; then
 			FREQ=240
@@ -91,20 +88,18 @@ do
 
 		# generate the model
 		echo "$LOG_EXT"
-		touch BUILD_MODEL_SQ8BIT/*
-		touch BUILD_MODEL_NE16/*
-		touch BUILD_MODEL_FP16/*
-		touch main.c
-		touch main_fp16.c
+		touch main.c && touch main_fp16.c && touch post_process.c
 
+
+		echo "Running mode $MODE: GPIO_MEAS=1 MODEL_NE16=$MODEL_NE16 MODEL_FP16=$MODEL_FP16 MODEL_HWC=$MODEL_HWC RAM_TYPE=$RAM_TYPE FLASH_TYPE=$FLASH_TYPE $DVFS_FLAGS"
 		# compile and run on board
-		make build -j MODEL_NE16=$MODEL_NE16 MODEL_FP16=$MODEL_FP16 MODEL_HWC=$MODEL_HWC RAM_TYPE=$RAM_TYPE FLASH_TYPE=$FLASH_TYPE AT_LOG_LEVEL=$AT_LOG_LEVEL
+		make build -j GPIO_MEAS=1 MODEL_NE16=$MODEL_NE16 MODEL_FP16=$MODEL_FP16 MODEL_HWC=$MODEL_HWC RAM_TYPE=$RAM_TYPE FLASH_TYPE=$FLASH_TYPE
 		python3 $PICO_MEAS_SCRIPT $LOGDIR/power\_${LOG_EXT} & 
-		make run MODEL_NE16=$MODEL_NE16 MODEL_FP16=$MODEL_FP16 MODEL_HWC=$MODEL_HWC RAM_TYPE=$RAM_TYPE FLASH_TYPE=$FLASH_TYPE AT_LOG_LEVEL=$AT_LOG_LEVEL \
+		make run GPIO_MEAS=1 MODEL_NE16=$MODEL_NE16 MODEL_FP16=$MODEL_FP16 MODEL_HWC=$MODEL_HWC RAM_TYPE=$RAM_TYPE FLASH_TYPE=$FLASH_TYPE \
 				> $LOGDIR/output\_board\_log\_${LOG_EXT}.txt
 
 		# check if any error in the grph constructor
-		python3 $OUT_LOG_PARSER $LOGDIR/output\_board\_log\_${LOG_EXT}.txt
+		python3 $OUT_LOG_CHECK $LOGDIR/output\_board\_log\_${LOG_EXT}.txt
 		if [ $? -eq "1" ]; then # kill the measurement job
 			for job in `jobs -p`
 			do
@@ -120,10 +115,6 @@ do
 			done
 		fi
 
-		python3 utils_measures/editlog.py $LOGDIR/power\_${LOG_EXT}.csv $LOGDIR/atmodel\_${MODEL_EXT}.txt $LOGDIR/output\_board\_log\_${LOG_EXT}.txt $LOGDIR/log\_${LOG_EXT}
-
-		rm $LOGDIR/power\_${LOG_EXT}.csv
-		rm $LOGDIR/output\_board\_log\_${LOG_EXT}.txt
+		python3 $LOG_TO_CSV $LOGDIR/power\_${LOG_EXT}.csv $LOGDIR/atmodel\_${MODEL_EXT}.txt $LOGDIR/log\_res.csv
 	done
-	rm $LOGDIR/atmodel\_${MODEL_EXT}.txt
 done

@@ -32,8 +32,8 @@ import torch
 #sys.path.append('../open_closed_eye')
 #from open_closed_eye.train import Net
 
-import albumentations
-from albumentations.pytorch.transforms import ToTensorV2
+#import albumentations
+#from albumentations.pytorch.transforms import ToTensorV2
 
 Rect = namedtuple('Rect', ['x', 'y', 'width', 'height'])
 Point = namedtuple('Point', ['x', 'y'])
@@ -116,7 +116,7 @@ class BlazeFace:
         scores, classes = self._decode_score_and_classes()
         
         resulting_boxes_indices = cv2.dnn.NMSBoxes(boxes, scores, self.min_score_threshold, self.min_suppression_threshold)
-        indices = np.squeeze(resulting_boxes_indices, axis=-1) if resulting_boxes_indices else []
+        indices = np.atleast_1d(np.squeeze(resulting_boxes_indices, axis=-1) if resulting_boxes_indices else [])
         detections = []
         for index in indices:
             box = boxes[index]
@@ -229,12 +229,15 @@ def draw_detections(frame: np.array, detections: list) -> np.array:
         print(f'BOUNDING BOX: {detection.bounding_box}')
         #print(f'WIDTH: {detection.bounding_box.width}')
         #print(f'HEIGHT: {detection.bounding_box.height}')
-        #print(f'LEFT EYE: {detection.keypoints[0].x}')
-
         left_eye_box, right_eye_box = get_eyes(detection)
+        print(f'LEFT EYE: {detection.keypoints[0].x}')
+        print(f'RIGHT EYE: {detection.keypoints[1].x}')
+
 
         frame = cv2.rectangle(frame, detection.bounding_box, YELLOW_COLOR, 2)
-        
+        frame = cv2.rectangle(frame, left_eye_box, RED_COLOR, 2)
+        frame = cv2.rectangle(frame, right_eye_box, RED_COLOR, 2)
+
     return frame
 
 def parse_arguments():
