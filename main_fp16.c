@@ -42,7 +42,9 @@ static void RunNetwork()
 	gap_cl_resethwtimer();
 #endif
   printf("Running on cluster\n");
-  face_detection_frontCNN(Input_1,scores_out,&(scores_out[512]),boxes_out,&(boxes_out[512*16]));
+  GPIO_HIGH();
+  face_detection_frontCNN(Input_1,boxes_out,scores_out,&(scores_out[512]),&(boxes_out[512*16]));
+  GPIO_LOW();
   printf("Runner completed\n");
 
 }
@@ -162,6 +164,7 @@ int start()
 {
 
 	#ifndef __EMUL__
+    	OPEN_GPIO_MEAS();
 		unsigned char * ImageIn = (unsigned char *) pmsis_l2_malloc(sizeof(char)*(AT_INPUT_SIZE));
 		boxes_out=pmsis_l2_malloc(sizeof(F16)*(16*896));
 		scores_out=pmsis_l2_malloc(sizeof(F16)*(1*896));
@@ -170,8 +173,19 @@ int start()
 		struct pi_device cluster_dev;
 		struct pi_cluster_conf conf;
 		pi_cluster_conf_init(&conf);
+		conf.cc_stack_size = STACK_SIZE;
 		pi_open_from_conf(&cluster_dev, (void *)&conf);
 		pi_cluster_open(&cluster_dev);
+		pi_freq_set(PI_FREQ_DOMAIN_FC, FREQ_FC*1000*1000);
+		pi_freq_set(PI_FREQ_DOMAIN_CL, FREQ_CL*1000*1000);
+		pi_freq_set(PI_FREQ_DOMAIN_PERIPH, FREQ_PE*1000*1000);
+		printf("Set FC Frequency = %d MHz, CL Frequency = %d MHz, PERIIPH Frequency = %d MHz\n",
+				pi_freq_get(PI_FREQ_DOMAIN_FC), pi_freq_get(PI_FREQ_DOMAIN_CL), pi_freq_get(PI_FREQ_DOMAIN_PERIPH));
+		#ifdef VOLTAGE
+		pi_pmu_voltage_set(PI_PMU_VOLTAGE_DOMAIN_CHIP, VOLTAGE);
+		pi_pmu_voltage_set(PI_PMU_VOLTAGE_DOMAIN_CHIP, VOLTAGE);
+		printf("Voltage: %dmV\n", VOLTAGE);
+		#endif
 	#else
 		Output_1=malloc(sizeof(char)*(16*16*32+96*8*8));
 		Output_2=malloc(sizeof(char)*(16*16*2+8*8*6));
@@ -207,11 +221,8 @@ int start()
 			pmsis_exit(-1);
 		}
 		printf("Stack size is %d and %d\n",STACK_SIZE,SLAVE_STACK_SIZE );
-		memset(task_encoder, 0, sizeof(struct pi_cluster_task));
-		task_encoder->entry = &RunNetwork;
-		task_encoder->stack_size = STACK_SIZE;
-		task_encoder->slave_stack_size = SLAVE_STACK_SIZE;
-		task_encoder->arg = NULL;
+		pi_cluster_task(task_encoder, &RunNetwork, NULL);
+		pi_cluster_task_stacks(task_encoder, NULL, SLAVE_STACK_SIZE);
 		pi_cluster_send_task_to_cl(&cluster_dev, task_encoder);
 	#else
 		RunNetwork();
@@ -296,24 +307,21 @@ int start()
 	return 0;
 }
 
-#ifdef __EMUL__
-void main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
-	if (argc < 2) {
-	printf("Usage: %s [image_file]\n", argv[0]);
-	exit(1);
-	}
-	ImageName = argv[1];
-	start(NULL);
+    #ifndef __EMUL__
+    ImageName = __XSTR(AT_IMAGE);
+    printf("\n\n\t *** NNTOOL BlazeFace int8 ***\n\n");
+    return pmsis_kickoff((void *) start);
+    #else
+    if (argc < 2)
+    {
+        printf("Usage: ./exe [image_file]\n");
+        exit(-1);
+    }
+    ImageName = argv[1];
+    printf("\n\n\t *** NNTOOL BlazeFace int8 ***\n\n");
+    start(NULL);
+    return 0;
+    #endif
 }
-#else
-void main()
-{
-
-#define __XSTR(__s) __STR(__s)
-#define __STR(__s) #__s
-    printf("\n\n\t *** NNTOOL MAIN APPL ***\n\n");
-    ImageName=__XSTR(AT_IMAGE);
-   	pmsis_kickoff((void *)start);
-}
-#endif

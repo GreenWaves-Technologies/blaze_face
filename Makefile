@@ -22,7 +22,7 @@ include common.mk
 #IMAGE=$(CURDIR)/images/croppedpgmfile1.ppm
 IMAGE=$(CURDIR)/images/francesco_cropped_r.ppm
 
-io=stdout
+io?=host
 
 QUANT_BITS=8
 BUILD_DIR=BUILD
@@ -31,46 +31,8 @@ BUILD_DIR=BUILD
 
 $(info Building GAP8 mode with $(QUANT_BITS) bit quantization)
 
-MAIN ?= main.c
-
-#LOAD A TFLITE QUANTIZED GRAPH
-NNTOOL_EXTRA_FLAGS=
-
 include model_decl.mk
 TRAINED_MODEL=model/face_detection_front.tflite
-
-# Here we set the default memory allocation for the generated kernels
-# REMEMBER THAT THE L1 MEMORY ALLOCATION MUST INCLUDE SPACE
-# FOR ALLOCATED STACKS!
-CLUSTER_STACK_SIZE?=4096
-CLUSTER_SLAVE_STACK_SIZE?=1024
-ifeq '$(TARGET_CHIP_FAMILY)' 'GAP9'
-  TOTAL_STACK_SIZE = $(shell expr $(CLUSTER_STACK_SIZE) \+ $(CLUSTER_SLAVE_STACK_SIZE) \* 8)
-  FREQ_CL?=50
-  FREQ_FC?=50
-  MODEL_L1_MEMORY=$(shell expr 125000 \- $(TOTAL_STACK_SIZE))
-  MODEL_L2_MEMORY=1300000
-  MODEL_L3_MEMORY=8388608
-else
-  TOTAL_STACK_SIZE = $(shell expr $(CLUSTER_STACK_SIZE) \+ $(CLUSTER_SLAVE_STACK_SIZE) \* 7)
-  ifeq '$(TARGET_CHIP)' 'GAP8_V3'
-    FREQ_CL?=175
-  else
-    FREQ_CL?=50
-  endif
-  FREQ_FC?=250
-  MODEL_L1_MEMORY=$(shell expr 60000 \- $(TOTAL_STACK_SIZE))
-  MODEL_L2_MEMORY?=250000
-  MODEL_L3_MEMORY=8000000
-endif
-
-
-# hram - HyperBus RAM
-# qspiram - Quad SPI RAM
-MODEL_L3_EXEC=hram
-# hflash - HyperBus Flash
-# qpsiflash - Quad SPI Flash
-MODEL_L3_CONST=hflash
 
 pulpChip = GAP
 PULP_APP = face_detection_front
@@ -79,13 +41,20 @@ USE_PMSIS_BSP=1
 APP = face_detection_front
 APP_SRCS += $(MAIN) post_process.c $(MODEL_GEN_C) $(MODEL_COMMON_SRCS) $(CNN_LIB)
 
-APP_CFLAGS += -g -O3 -mno-memcpy -fno-tree-loop-distribute-patterns
+APP_CFLAGS += -gdwarf-2 -g -O3 -mno-memcpy -fno-tree-loop-distribute-patterns
 APP_CFLAGS += -I. -I$(MODEL_COMMON_INC) -I$(TILER_EMU_INC) -I$(TILER_INC) $(CNN_LIB_INCLUDE) -I$(MODEL_BUILD)
 APP_CFLAGS += -DAT_MODEL_PREFIX=$(MODEL_PREFIX) $(MODEL_SIZE_CFLAGS)
 APP_CFLAGS += -DSTACK_SIZE=$(CLUSTER_STACK_SIZE) -DSLAVE_STACK_SIZE=$(CLUSTER_SLAVE_STACK_SIZE)
-APP_CFLAGS += -DAT_IMAGE=$(IMAGE)
-
-#APP_CFLAGS += -DPERF
+APP_CFLAGS += -DAT_IMAGE=$(IMAGE) -DFREQ_CL=$(FREQ_CL) -DFREQ_FC=$(FREQ_FC) -DFREQ_PE=$(FREQ_PE)
+ifneq '$(platform)' 'gvsoc'
+ifdef GPIO_MEAS
+APP_CFLAGS += -DGPIO_MEAS
+endif
+VOLTAGE?=800
+ifeq '$(PMSIS_OS)' 'pulpos'
+  APP_CFLAGS += -DVOLTAGE=$(VOLTAGE)
+endif
+endif
 
 APP_LDFLAGS += -lm
 

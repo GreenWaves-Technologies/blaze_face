@@ -2,23 +2,15 @@ import sys
 import argparse
 from pathlib import Path
 from collections import namedtuple
-import tensorflow as tf
 import cv2
 
 from anchors import Anchor, load_face_anchors
 
-from execution.graph_executer import GraphExecuter
-from execution.quantization_mode import QuantizationMode
+from nntool.api import NNGraph
 import numpy as np
 import os
 import glob
-import ntpath
-import random
-import logging
-import pandas as pd
-from PIL import Image
 import cv2
-from matplotlib import pyplot as plt
 
 #Accuracy of eval dataset detects 170 bbs in float and 150 in fixed point
 #Accuracy of fixed point vs Float is 88% 
@@ -27,14 +19,12 @@ DUMP_QUANT = True
 DUMP_FLOAT = True
 threshold = 0.5
 nms_threshold = 0.4
-NUM_FILES = 21
 score_clipping_threshold=100
 dataset_files = glob.glob("eval_dataset/*")
 quantization_result_path = "quantized_output"
 non_quantization_result_path ="non_quantized_output"
 
 class_names = ("null","person")
-
 
 Rect = namedtuple('Rect', ['x', 'y', 'width', 'height'])
 Point = namedtuple('Point', ['x', 'y'])
@@ -44,10 +34,6 @@ RED_COLOR = (0, 0, 255, 255)
 GREEN_COLOR = (0, 255, 0, 255)
 BLUE_COLOR = (255, 0, 0, 255)
 YELLOW_COLOR = (0, 255, 255, 255)
-
-quantized_list= list()
-non_quantized_list= list()
-
 
 def resize_aspect_fit(src: np.array, target_side_size: int) -> tuple:
     src_height, src_width = src.shape[:2]
@@ -67,8 +53,8 @@ def resize_aspect_fit(src: np.array, target_side_size: int) -> tuple:
 
 
 class BlazeFace_decoder:
-	
-	# Initilizer
+    
+    # Initilizer
     def __init__(self, raw_boxes,raw_classes):
         
         self.number_of_keypoints = 6
@@ -101,7 +87,7 @@ class BlazeFace_decoder:
         scores, classes = self._decode_score_and_classes()
         
         resulting_boxes_indices = cv2.dnn.NMSBoxes(boxes, scores, self.min_score_threshold, self.min_suppression_threshold)
-        indices = np.squeeze(resulting_boxes_indices, axis=-1) #if resulting_boxes_indices else []
+        indices = np.atleast_1d(resulting_boxes_indices)
         detections = []
         for index in indices:
             box = boxes[index]
@@ -210,98 +196,99 @@ def crop_eyes(frame, detection):
     return left_eye_frame, right_eye_frame
 
 def draw_detections(frame: np.array, detections: list) -> np.array:
-	num_detections=0
-	for detection in detections:
-		num_detections=num_detections+1
-		print(f'BOUNDING BOX: {detection.bounding_box}')
-		#print(f'WIDTH: {detection.bounding_box.width}')
-		#print(f'HEIGHT: {detection.bounding_box.height}')
-		#print(f'LEFT EYE: {detection.keypoints[0].x}')
-		#left_eye_box, right_eye_box = get_eyes(detection)
-		frame = cv2.rectangle(frame, detection.bounding_box, YELLOW_COLOR, 2)
+    num_detections=0
+    for detection in detections:
+        num_detections=num_detections+1
+        #print(f'BOUNDING BOX: {detection.bounding_box}')
+        #print(f'WIDTH: {detection.bounding_box.width}')
+        #print(f'HEIGHT: {detection.bounding_box.height}')
+        #print(f'LEFT EYE: {detection.keypoints[0].x}')
+        left_eye_box, right_eye_box = get_eyes(detection)
+
+        frame = cv2.rectangle(frame, detection.bounding_box, YELLOW_COLOR, 2)
+        frame = cv2.rectangle(frame, left_eye_box, RED_COLOR, 2)
+        frame = cv2.rectangle(frame, right_eye_box, RED_COLOR, 2)
         
-	return frame, num_detections
+    return frame, num_detections
 
 def preprocess(resized_inputs):
     return  resized_inputs/128 - 1.0
 
 def ExtractBBoxes(bboxes, bclasses, bscores, im_width, im_height, threshold):
-	bbox = []
-	print(bscores)
-	for idx in range(len(bboxes)):
-		if bclasses[idx] == 1:
-			if bscores[idx] >= threshold:
-				
-				y_min = int(bboxes[idx][0] * im_height)
-				x_min = int(bboxes[idx][1] * im_width)
-				y_max = int(bboxes[idx][2] * im_height)
-				x_max = int(bboxes[idx][3] * im_width)
-				class_label = 'person'
-				bbox.append([x_min, y_min, x_max, y_max, class_label, float(bscores[idx])])
-	return bbox
+    bbox = []
+    print(bscores)
+    for idx in range(len(bboxes)):
+        if bclasses[idx] == 1:
+            if bscores[idx] >= threshold:
+                
+                y_min = int(bboxes[idx][0] * im_height)
+                x_min = int(bboxes[idx][1] * im_width)
+                y_max = int(bboxes[idx][2] * im_height)
+                x_max = int(bboxes[idx][3] * im_width)
+                class_label = 'person'
+                bbox.append([x_min, y_min, x_max, y_max, class_label, float(bscores[idx])])
+    return bbox
 
 def decode_bounding_boxes(bboxes, bclasses, im_width, im_height, threshold, nms_threshold):
 
-	decode = BlazeFace_decoder(bboxes,bclasses)
-	detections = decode.postprocess(128,128)
-	return detections
+    decode = BlazeFace_decoder(bboxes,bclasses)
+    detections = decode.postprocess(128,128)
+    return detections
 
 
 def main():
 
-	if not os.path.exists(quantization_result_path):
-		os.makedirs(quantization_result_path)
+    if not os.path.exists(quantization_result_path):
+        os.makedirs(quantization_result_path)
 
-	if not os.path.exists(non_quantization_result_path):
-		os.makedirs(non_quantization_result_path)
+    if not os.path.exists(non_quantization_result_path):
+        os.makedirs(non_quantization_result_path)
 
-	executer = GraphExecuter(G, qrecs=G.quantization)
+    G = NNGraph.load_graph("BUILD_MODEL_SQ8BIT/face_detection_front.json")
 
-	q_dets=0
-	dets=0
-	for j, file in enumerate(dataset_files):
-		name= file.split('/')
-		image_name= name[1]
-		print(image_name)
-		original_img = cv2.imread(file,0)
-		image_gray,null = resize_aspect_fit(original_img,128)
-		q_image_gray = image_gray.copy()
-		image = np.stack((image_gray,image_gray,image_gray),axis=2)
-		print("Input Image: "+image_name+" - shape: "+str(image.shape))
-		image_q = image
-		
-		if DUMP_FLOAT:
-			print("Float")
-			data =[image]
-			#Calling nntool float executer on input data
-			outputs  = executer.execute(data, qmode=None, silent=True)
-			bboxes   = np.concatenate((np.array(outputs[137][0]),np.array(outputs[143][0])))# taking just one dimension
-			bclasses = np.concatenate((np.array(outputs[125][0]),np.array(outputs[131][0])))
-			#bclasses = np.array(outputs[125][0])
+    q_dets=0
+    dets=0
+    for j, file in enumerate(dataset_files):
+        name= file.split('/')
+        image_name= name[1]
+        print(image_name)
+        original_img = cv2.imread(file,0)
+        image_gray,null = resize_aspect_fit(original_img,128)
+        q_image_gray = image_gray.copy()
+        image = np.stack((image_gray,image_gray,image_gray),axis=2)
+        print("Input Image: "+image_name+" - shape: "+str(image.shape))
+        data = [image]
+        out_idxs = [node.step_idx for node in G.output_nodes()]
+        if DUMP_FLOAT:
+            print("Float")
+            #Calling nntool float executer on input data
+            outputs  = G.execute(data)
+            bboxes   = np.concatenate((np.array(outputs[out_idxs[2]][0]),np.array(outputs[out_idxs[3]][0])))# taking just one dimension
+            bclasses = np.concatenate((np.array(outputs[out_idxs[0]][0]),np.array(outputs[out_idxs[1]][0])))
+            #bclasses = np.array(outputs[125][0])
 
-			detections = decode_bounding_boxes(bboxes, bclasses, 128, 128, threshold, nms_threshold)
+            detections = decode_bounding_boxes(bboxes, bclasses, 128, 128, threshold, nms_threshold)
+            frame, numd = draw_detections(image_gray,detections)
+            cv2.imwrite(non_quantization_result_path + '/' + image_name, frame )
+            dets = dets + numd
 
-			frame,numd = draw_detections(image_gray,detections)
-			cv2.imwrite(non_quantization_result_path + '/' + image_name, frame )
-			dets=dets+numd
+        if DUMP_QUANT:
+            print("Quantized")
+            #Calling nntool quantized executer on input data
+            outputs  = G.execute(data, dequantize=True)
+            bboxes   = np.concatenate((np.array(outputs[out_idxs[2]][0]),np.array(outputs[out_idxs[3]][0])))# taking just one dimension
+            bclasses = np.concatenate((np.array(outputs[out_idxs[0]][0]),np.array(outputs[out_idxs[1]][0])))
 
-		if DUMP_QUANT:
-			print("Quantized")
-			data   = [image_q]
-			#Calling nntool quantized executer on input data
-			outputs  = executer.execute(data, qmode=QuantizationMode.all_dequantize(), silent=True)
-			bboxes   = np.concatenate((np.array(outputs[137][0]),np.array(outputs[143][0])))# taking just one dimension
-			bclasses = np.concatenate((np.array(outputs[125][0]),np.array(outputs[131][0])))
+            detections = decode_bounding_boxes(bboxes, bclasses, 128, 128, threshold, nms_threshold)
+            q_frame, q_numd = draw_detections(q_image_gray,detections)
+            cv2.imwrite(quantization_result_path + '/' + image_name, q_frame )
+            q_dets = q_dets + q_numd
 
-			detections = decode_bounding_boxes(bboxes, bclasses, 128, 128, threshold, nms_threshold)
-			q_frame, q_numd = draw_detections(q_image_gray,detections)
-			cv2.imwrite(quantization_result_path + '/' + image_name, q_frame )
-			q_dets = q_dets+q_numd
+        print("")
 
-		print("")
+    print("Detected Float: " + str(dets))
+    print("Detected Fixed: " + str(q_dets))
 
-	print("Detected Float: " + str(dets))
-	print("Detected Fixed: " + str(q_dets))
-#if __name__ == '__main__':
-#    sys.exit(main())
-main()
+if __name__ == '__main__':
+    main()
+
