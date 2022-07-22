@@ -68,3 +68,26 @@ else ifeq '$(RAM_TYPE)' 'OSPI'
 else ifeq '$(RAM_TYPE)' 'DEFAULT'
   MODEL_L3_RAM=AT_MEM_L3_DEFAULTRAM
 endif
+
+ifeq ($(MODEL_FP16), 1)
+	NNTOOL_SCRIPT=model/nntool_script_fp16
+	MODEL_SUFFIX = _FP16
+	MAIN = main_fp16.c
+	APP_CFLAGS += -DFLOAT_POST_PROCESS -DSTD_FLOAT
+	CLUSTER_STACK_SIZE=6048
+else
+MODEL_SQ8=1
+ifeq ($(MODEL_NE16), 1)
+	NNTOOL_SCRIPT=model/nntool_script_ne16
+	MODEL_SUFFIX = _NE16
+	CLUSTER_STACK_SIZE=6048
+else
+ifeq ($(MODEL_HWC), 1)
+        NNTOOL_SCRIPT=model/nntool_script_hwc
+        MODEL_SUFFIX = _HWC
+else
+	NNTOOL_SCRIPT=model/nntool_script
+	MODEL_SUFFIX = _SQ8BIT
+endif
+endif
+endif

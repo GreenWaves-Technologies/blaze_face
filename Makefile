@@ -27,7 +27,7 @@ io?=host
 QUANT_BITS=8
 BUILD_DIR=BUILD
 
-PMSIS_OS?=pulpos
+#PMSIS_OS?=pulpos
 
 $(info Building GAP8 mode with $(QUANT_BITS) bit quantization)
 
