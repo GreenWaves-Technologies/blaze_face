@@ -165,9 +165,9 @@ int start()
 
 	#ifndef __EMUL__
     	OPEN_GPIO_MEAS();
-		unsigned char * ImageIn = (unsigned char *) pmsis_l2_malloc(sizeof(char)*(AT_INPUT_SIZE));
-		boxes_out=pmsis_l2_malloc(sizeof(F16)*(16*896));
-		scores_out=pmsis_l2_malloc(sizeof(F16)*(1*896));
+		unsigned char * ImageIn = (unsigned char *) pi_l2_malloc(sizeof(char)*(AT_INPUT_SIZE));
+		boxes_out=pi_l2_malloc(sizeof(F16)*(16*896));
+		scores_out=pi_l2_malloc(sizeof(F16)*(1*896));
 	
 		/*-----------------------OPEN THE CLUSTER--------------------------*/
 		struct pi_device cluster_dev;
@@ -215,7 +215,7 @@ int start()
 
 	#ifndef __EMUL__
 		/*--------------------------TASK SETUP------------------------------*/
-		struct pi_cluster_task *task_encoder = pmsis_l2_malloc(sizeof(struct pi_cluster_task));
+		struct pi_cluster_task *task_encoder = pi_l2_malloc(sizeof(struct pi_cluster_task));
 		if(task_encoder==NULL) {
 			printf("pi_cluster_task alloc Error!\n");
 			pmsis_exit(-1);
@@ -248,9 +248,9 @@ int start()
 	
 // /* ------------------------------------------------------------------------- */
 
-	float *scores = pmsis_l2_malloc(896*sizeof(float));
-	float *boxes  = pmsis_l2_malloc(16*896*sizeof(float));
-	bbox_float_t* bboxes = pmsis_l2_malloc(MAX_BB_OUT*sizeof(bbox_float_t));
+	float *scores = pi_l2_malloc(896*sizeof(float));
+	float *boxes  = pi_l2_malloc(16*896*sizeof(float));
+	bbox_float_t* bboxes = pi_l2_malloc(MAX_BB_OUT*sizeof(bbox_float_t));
 
 	if(scores==NULL || boxes==NULL || bboxes==NULL){
 		printf("Alloc error\n");
@@ -281,8 +281,8 @@ int start()
   			printf("%f %f %f %f %f\n",bboxes[i].score, bboxes[i].xmin,bboxes[i].ymin,bboxes[i].w,bboxes[i].h);
   	}
 
-  	pmsis_l2_malloc_free(scores,896*sizeof(float));
-  	pmsis_l2_malloc_free(boxes,16*896*sizeof(float));
+  	pi_l2_free(scores,896*sizeof(float));
+  	pi_l2_free(boxes,16*896*sizeof(float));
 
 	if(checkResults(bboxes)){
 		printf("Output is not correct...\n");
@@ -291,11 +291,11 @@ int start()
 		printf("Output correct!\n");
 	}
 
-	pmsis_l2_malloc_free(bboxes,MAX_BB_OUT*sizeof(bbox_t));
+	pi_l2_free(bboxes,MAX_BB_OUT*sizeof(bbox_t));
 
 	#ifndef __EMUL__
-		pmsis_l2_malloc_free(scores_out,sizeof(F16)*(1*896));
-		pmsis_l2_malloc_free(boxes_out,sizeof(F16)*(16*896));
+		pi_l2_free(scores_out,sizeof(F16)*(1*896));
+		pi_l2_free(boxes_out,sizeof(F16)*(16*896));
 
 		pmsis_exit(0);
 	#else
