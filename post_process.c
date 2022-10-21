@@ -1,7 +1,6 @@
 
 #include "post_process.h"
 
-
 #ifdef FLOAT_POST_PROCESS
 #include "anchors.h"
 
