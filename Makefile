@@ -60,11 +60,6 @@ APP_LDFLAGS += -lm
 
 READFS_FILES=$(abspath $(MODEL_TENSORS))
 
-<<<<<<< HEAD
-# all depends on the model
-=======
-# build depends on the model
->>>>>>> integration
 build:: model
 
 clean:: clean_model
