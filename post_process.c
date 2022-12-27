@@ -33,7 +33,7 @@ void post_process(float* scores,float * boxes,bbox_float_t* bboxes,int img_w,int
 
 			center_x = boxes[(i*16)+box_offset_x] /  (float)X_SCALE * anchors[(i*4)+2] + anchors[(i*4)+0];
 	    	center_y = boxes[(i*16)+box_offset_y] /  (float)Y_SCALE * anchors[(i*4)+3] + anchors[(i*4)+1];
-			printf("Scores: %f %f %f\n",scores[i],center_x,center_y);
+			printf("FP Scores: %f %f %f\n",scores[i],center_x,center_y);
 	    	bbh = boxes[(i*16)+box_offset_height] /  (float) H_SCALE * anchors[(i*4)+3];
 	    	bbw = boxes[(i*16)+box_offset_width]  /  (float) W_SCALE * anchors[(i*4)+2];
 	    	printf("bbh bbw: %f %f\n",bbh,bbw);

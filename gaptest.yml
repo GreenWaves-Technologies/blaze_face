@@ -1,4 +1,5 @@
 name: blaze_face
+builder: cmake
 boards: []
 platforms: 
     - board
@@ -10,10 +11,18 @@ chips:
     - gap8
     - gap9
 variants:
-    std:
-        name: standard
+    int8:
+        name: int8
         tags:
             - integration
             - release
         duration: standard
         flags: ~
+
+    # fp16:
+    #     name: fp16
+    #     tags:
+    #         - integration
+    #         - release
+    #     duration: standard
+    #     flags: CONFIG_MODEL_FP16=y
