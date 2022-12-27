@@ -39,7 +39,7 @@ PULP_APP = face_detection_front
 USE_PMSIS_BSP=1
 
 APP = face_detection_front
-APP_SRCS += $(MAIN) post_process.c $(MODEL_GEN_C) $(MODEL_COMMON_SRCS) $(CNN_LIB)
+APP_SRCS += $(MAIN) post_process.c $(MODEL_GEN_C) $(MODEL_EXPRESSIONS) $(MODEL_COMMON_SRCS) $(CNN_LIB)
 
 APP_CFLAGS += -gdwarf-2 -g -O3 -mno-memcpy -fno-tree-loop-distribute-patterns
 APP_CFLAGS += -I. -I$(MODEL_COMMON_INC) -I$(TILER_EMU_INC) -I$(TILER_INC) $(CNN_LIB_INCLUDE) -I$(MODEL_BUILD) -I${GAP_SDK_HOME}/utils/power_meas_utils/

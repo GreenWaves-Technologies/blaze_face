@@ -345,7 +345,6 @@ int main(int argc, char *argv[])
     #ifndef __EMUL__
     ImageName = __XSTR(AT_IMAGE);
     printf("\n\n\t *** NNTOOL BlazeFace int8 ***\n\n");
-    return pmsis_kickoff((void *) start);
     #else
     if (argc < 2)
     {
@@ -354,7 +353,7 @@ int main(int argc, char *argv[])
     }
     ImageName = argv[1];
     printf("\n\n\t *** NNTOOL BlazeFace int8 ***\n\n");
+    #endif
     start(NULL);
     return 0;
-    #endif
 }
