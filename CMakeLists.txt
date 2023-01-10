@@ -82,7 +82,7 @@ list(APPEND TARGET_INCS -I${TILER_INC}
                         -I${TILER_EMU_INC}
                         -I${GAP_SDK_HOME}/libs/gap_lib/include
                           ${CNN_LIB_INCLUDE}
-			-I${COMMON_MODEL_BUILDDIR}
+                        -I${COMMON_MODEL_BUILDDIR}
                         -I${CMAKE_CURRENT_SOURCE_DIR}
                         -I${GAP_SDK_HOME}/utils/power_meas_utils)
 
@@ -93,8 +93,8 @@ math(EXPR FREQ_FC_MHZ "${CONFIG_FREQUENCY_FC}/1000/1000")
 math(EXPR FREQ_PE_MHZ "${CONFIG_FREQUENCY_PERIPH}/1000/1000")
 list(APPEND TARGET_PREPROCESSOR -DPERF
                                 -DAT_MODEL_PREFIX=${MODEL_PREFIX}
-				-DSTACK_SIZE=${CONFIG_CL_MASTER_CORE_STACK_SIZE}
-				-DSLAVE_STACK_SIZE=${CONFIG_CL_SLAVE_CORE_STACK_SIZE}
+                                -DSTACK_SIZE=${CONFIG_CL_MASTER_CORE_STACK_SIZE}
+                                -DSLAVE_STACK_SIZE=${CONFIG_CL_SLAVE_CORE_STACK_SIZE}
                                 -DAT_IMAGE=${CMAKE_CURRENT_SOURCE_DIR}/${IMAGE}
                                 -DAT_INPUT_HEIGHT=128
                                 -DAT_INPUT_WIDTH=128

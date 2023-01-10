@@ -161,33 +161,28 @@ int checkResults(bbox_float_t *boundbxs){
 
 int start()
 {
+	OPEN_GPIO_MEAS();
+	unsigned char * ImageIn = (unsigned char *) pi_l2_malloc(sizeof(char)*(AT_INPUT_SIZE));
+	boxes_out=pi_l2_malloc(sizeof(F16)*(16*896));
+	scores_out=pi_l2_malloc(sizeof(F16)*(1*896));
+	printf("----> %x %x\n", scores_out, boxes_out);
 
-	#ifndef __EMUL__
-    	OPEN_GPIO_MEAS();
-		unsigned char * ImageIn = (unsigned char *) pi_l2_malloc(sizeof(char)*(AT_INPUT_SIZE));
-		boxes_out=pi_l2_malloc(sizeof(F16)*(16*896));
-		scores_out=pi_l2_malloc(sizeof(F16)*(1*896));
-	
-		/*-----------------------OPEN THE CLUSTER--------------------------*/
-		struct pi_device cluster_dev;
-		struct pi_cluster_conf conf;
-		pi_cluster_conf_init(&conf);
-		conf.cc_stack_size = STACK_SIZE;
-		pi_open_from_conf(&cluster_dev, (void *)&conf);
-		pi_cluster_open(&cluster_dev);
-		pi_freq_set(PI_FREQ_DOMAIN_FC, FREQ_FC*1000*1000);
-		pi_freq_set(PI_FREQ_DOMAIN_CL, FREQ_CL*1000*1000);
-		pi_freq_set(PI_FREQ_DOMAIN_PERIPH, FREQ_PE*1000*1000);
-		printf("Set FC Frequency = %d MHz, CL Frequency = %d MHz, PERIIPH Frequency = %d MHz\n",
-				pi_freq_get(PI_FREQ_DOMAIN_FC), pi_freq_get(PI_FREQ_DOMAIN_CL), pi_freq_get(PI_FREQ_DOMAIN_PERIPH));
-		#ifdef VOLTAGE
-		pi_pmu_voltage_set(PI_PMU_VOLTAGE_DOMAIN_CHIP, VOLTAGE);
-		pi_pmu_voltage_set(PI_PMU_VOLTAGE_DOMAIN_CHIP, VOLTAGE);
-		printf("Voltage: %dmV\n", VOLTAGE);
-		#endif
-	#else
-		Output_1=malloc(sizeof(char)*(16*16*32+96*8*8));
-		Output_2=malloc(sizeof(char)*(16*16*2+8*8*6));
+	/*-----------------------OPEN THE CLUSTER--------------------------*/
+	struct pi_device cluster_dev;
+	struct pi_cluster_conf conf;
+	pi_cluster_conf_init(&conf);
+	conf.cc_stack_size = STACK_SIZE;
+	pi_open_from_conf(&cluster_dev, (void *)&conf);
+	pi_cluster_open(&cluster_dev);
+	pi_freq_set(PI_FREQ_DOMAIN_FC, FREQ_FC*1000*1000);
+	pi_freq_set(PI_FREQ_DOMAIN_CL, FREQ_CL*1000*1000);
+	pi_freq_set(PI_FREQ_DOMAIN_PERIPH, FREQ_PE*1000*1000);
+	printf("Set FC Frequency = %d MHz, CL Frequency = %d MHz, PERIIPH Frequency = %d MHz\n",
+			pi_freq_get(PI_FREQ_DOMAIN_FC), pi_freq_get(PI_FREQ_DOMAIN_CL), pi_freq_get(PI_FREQ_DOMAIN_PERIPH));
+	#ifdef VOLTAGE
+	pi_pmu_voltage_set(PI_PMU_VOLTAGE_DOMAIN_CHIP, VOLTAGE);
+	pi_pmu_voltage_set(PI_PMU_VOLTAGE_DOMAIN_CHIP, VOLTAGE);
+	printf("Voltage: %dmV\n", VOLTAGE);
 	#endif
 
 	printf("Reading image %s\n", ImageName);
@@ -212,20 +207,16 @@ int start()
 		}
 	}
 
-	#ifndef __EMUL__
-		/*--------------------------TASK SETUP------------------------------*/
-		struct pi_cluster_task *task_encoder = pi_l2_malloc(sizeof(struct pi_cluster_task));
-		if(task_encoder==NULL) {
-			printf("pi_cluster_task alloc Error!\n");
-			pmsis_exit(-1);
-		}
-		printf("Stack size is %d and %d\n",STACK_SIZE,SLAVE_STACK_SIZE );
-		pi_cluster_task(task_encoder, &RunNetwork, NULL);
-		pi_cluster_task_stacks(task_encoder, NULL, SLAVE_STACK_SIZE);
-		pi_cluster_send_task_to_cl(&cluster_dev, task_encoder);
-	#else
-		RunNetwork();
-	#endif
+	/*--------------------------TASK SETUP------------------------------*/
+	struct pi_cluster_task *task_encoder = pi_l2_malloc(sizeof(struct pi_cluster_task));
+	if(task_encoder==NULL) {
+		printf("pi_cluster_task alloc Error!\n");
+		pmsis_exit(-1);
+	}
+	printf("Stack size is %d and %d\n",STACK_SIZE,SLAVE_STACK_SIZE );
+	pi_cluster_task(task_encoder, &RunNetwork, NULL);
+	pi_cluster_task_stacks(task_encoder, NULL, SLAVE_STACK_SIZE);
+	pi_cluster_send_task_to_cl(&cluster_dev, task_encoder);
 
 #ifdef PERF
     {
@@ -258,17 +249,18 @@ int start()
 	}
 	printf("\n");
 	for(int i=0;i<896;i++){
+		// printf("Scores[%d] %f\n", i, scores_out[i]);
 		if(i<512)
-			scores[i] = 1/(1+exp(-(((float)scores_out[i]))));
+			scores[i] = 1/(1+expf(-(((float)scores_out[i]))));
 		else
-			scores[i] = 1/(1+exp(-(((float)scores_out[i]))));
+			scores[i] = 1/(1+expf(-(((float)scores_out[i]))));
 
 		for(int j=0;j<16;j++){
 			if(i<512)
 				boxes[(i*16)+j] = ((float)boxes_out[(i*16)+j]);
 			else
 				boxes[(i*16)+j] = ((float)boxes_out[(i*16)+j]);
-		}	
+		}
 	}
 
   	post_process(scores,boxes,bboxes,128,128, 0.5f);
@@ -311,7 +303,6 @@ int main(int argc, char *argv[])
 {
     #ifndef __EMUL__
     ImageName = __XSTR(AT_IMAGE);
-    printf("\n\n\t *** NNTOOL BlazeFace int8 ***\n\n");
     #else
     if (argc < 2)
     {
@@ -319,8 +310,8 @@ int main(int argc, char *argv[])
         exit(-1);
     }
     ImageName = argv[1];
-    printf("\n\n\t *** NNTOOL BlazeFace int8 ***\n\n");
     #endif
+    printf("\n\n\t *** NNTOOL BlazeFace float16 ***\n\n");
     start();
     return 0;
 }
