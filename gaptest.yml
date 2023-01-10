@@ -19,10 +19,10 @@ variants:
         duration: standard
         flags: ~
 
-    # fp16:
-    #     name: fp16
-    #     tags:
-    #         - integration
-    #         - release
-    #     duration: standard
-    #     flags: CONFIG_MODEL_FP16=y
+    fp16:
+        name: fp16
+        tags:
+            - integration
+            - release
+        duration: standard
+        flags: CONFIG_MODEL_FP16=y
