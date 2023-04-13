@@ -22,7 +22,6 @@
 /* Defines */
 #define NUM_CLASSES 	2
 #define AT_INPUT_SIZE 	(AT_INPUT_WIDTH*AT_INPUT_HEIGHT*AT_INPUT_COLORS)
-#define PERF
 
 #define __XSTR(__s) __STR(__s)
 #define __STR(__s) #__s 
@@ -33,7 +32,7 @@ signed char* scores_out;
 signed char* boxes_out;
 
 AT_HYPERFLASH_FS_EXT_ADDR_TYPE face_detection_front_L3_Flash = 0;
-signed char Input_1[AT_INPUT_SIZE];
+unsigned char Input_1[AT_INPUT_SIZE];
 char *ImageName = NULL;
 
 static void RunNetwork()
