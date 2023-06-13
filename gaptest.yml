@@ -1,28 +1,87 @@
 name: blaze_face
-builder: cmake
-boards: []
-platforms: 
-    - board
-    - gvsoc
-os: 
-    - freertos
-    - pulpos
-chips: 
-    - gap8
-    - gap9
 variants:
-    int8:
-        name: int8
-        tags:
-            - integration
-            - release
-        duration: standard
-        flags: ~
+    int8_gvsoc:
+        chip: gap9
+        board: gap9evk
+        platform: gvsoc
+        os: freertos
+        builder: cmake
+        flags:
+            - CONFIG_CNN_SQ8=y
+            - CONFIG_MODEL_LOGLEVEL=1
+            - CONFIG_CL_SLAVE_CORE_STACK_SIZE=512
+            - CONFIG_ENABLE_NNTOOL=y
+            - CONFIG_MODEL_FLOAT16_TYPE_IEEE16=y
+            - CONFIG_BOARD_GAP9MOD_V1_0_B=y
+            - CONFIG_BOARD_GAP9EVK_V1_3=y
+            - CONFIG_LIB_GAP_LIB=y
+            - CONFIG_LIB_GAP_LIB_IMG_IO=y
+            - CONFIG_DRIVER_READFS=y
+            - CONFIG_DRIVER_HOSTFS=y
+            - CONFIG_DRIVER_TYPE_FLASH=y
+            - CONFIG_DRIVER_TYPE_RAM=y
 
-    fp16:
-        name: fp16
-        tags:
-            - integration
-            - release
-        duration: standard
-        flags: CONFIG_MODEL_FP16=y
+    fp16_gvsoc:
+        chip: gap9
+        board: gap9evk
+        platform: gvsoc
+        os: freertos
+        builder: cmake
+        flags:
+            - CONFIG_MODEL_FP16=y
+            - CONFIG_CNN_SQ8=y
+            - CONFIG_MODEL_LOGLEVEL=1
+            - CONFIG_CL_SLAVE_CORE_STACK_SIZE=512
+            - CONFIG_ENABLE_NNTOOL=y
+            - CONFIG_MODEL_FLOAT16_TYPE_IEEE16=y
+            - CONFIG_BOARD_GAP9MOD_V1_0_B=y
+            - CONFIG_BOARD_GAP9EVK_V1_3=y
+            - CONFIG_LIB_GAP_LIB=y
+            - CONFIG_LIB_GAP_LIB_IMG_IO=y
+            - CONFIG_DRIVER_READFS=y
+            - CONFIG_DRIVER_HOSTFS=y
+            - CONFIG_DRIVER_TYPE_FLASH=y
+            - CONFIG_DRIVER_TYPE_RAM=y
+
+    int8_board:
+        chip: gap9
+        board: gap9evk
+        platform: board
+        os: freertos
+        builder: cmake
+        flags:
+            - CONFIG_CNN_SQ8=y
+            - CONFIG_MODEL_LOGLEVEL=1
+            - CONFIG_CL_SLAVE_CORE_STACK_SIZE=512
+            - CONFIG_ENABLE_NNTOOL=y
+            - CONFIG_MODEL_FLOAT16_TYPE_IEEE16=y
+            - CONFIG_BOARD_GAP9MOD_V1_0_B=y
+            - CONFIG_BOARD_GAP9EVK_V1_3=y
+            - CONFIG_LIB_GAP_LIB=y
+            - CONFIG_LIB_GAP_LIB_IMG_IO=y
+            - CONFIG_DRIVER_READFS=y
+            - CONFIG_DRIVER_HOSTFS=y
+            - CONFIG_DRIVER_TYPE_FLASH=y
+            - CONFIG_DRIVER_TYPE_RAM=y
+
+    fp16_board:
+        chip: gap9
+        board: gap9evk
+        platform: board
+        os: freertos
+        builder: cmake
+        flags:
+            - CONFIG_MODEL_FP16=y
+            - CONFIG_CNN_SQ8=y
+            - CONFIG_MODEL_LOGLEVEL=1
+            - CONFIG_CL_SLAVE_CORE_STACK_SIZE=512
+            - CONFIG_ENABLE_NNTOOL=y
+            - CONFIG_MODEL_FLOAT16_TYPE_IEEE16=y
+            - CONFIG_BOARD_GAP9MOD_V1_0_B=y
+            - CONFIG_BOARD_GAP9EVK_V1_3=y
+            - CONFIG_LIB_GAP_LIB=y
+            - CONFIG_LIB_GAP_LIB_IMG_IO=y
+            - CONFIG_DRIVER_READFS=y
+            - CONFIG_DRIVER_HOSTFS=y
+            - CONFIG_DRIVER_TYPE_FLASH=y
+            - CONFIG_DRIVER_TYPE_RAM=y
